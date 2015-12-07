@@ -294,6 +294,8 @@ static int sdhci_tegra_probe(struct platform_device *pdev)
 	clk_prepare_enable(clk);
 	pltfm_host->clk = clk;
 
+	host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
+
 	rc = sdhci_add_host(host);
 	if (rc)
 		goto err_add_host;
