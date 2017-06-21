@@ -34,7 +34,7 @@
 
 static void t20_intr_syncpt_thresh_isr(struct nvhost_intr_syncpt *syncpt);
 
-static void t20_syncpt_thresh_cascade_fn(struct work_struct *work)
+static void t20_syncpt_thresh_cascade_fn(struct kthread_work *work)
 {
 	struct nvhost_intr_syncpt *sp =
 		container_of(work, struct nvhost_intr_syncpt, work);
@@ -57,7 +57,7 @@ static irqreturn_t t20_syncpt_thresh_cascade_isr(int irq, void *dev_id)
 			struct nvhost_intr_syncpt *sp =
 				intr->syncpt + (i * BITS_PER_LONG + id);
 			t20_intr_syncpt_thresh_isr(sp);
-			queue_work(intr->wq, &sp->work);
+			queue_kthread_work(&intr->worker, &sp->work);
 		}
 	}
 
@@ -79,7 +79,7 @@ static void t20_request_syncpt_irq(struct nvhost_intr *intr)
 	       sync_regs + host1x_sync_syncpt_thresh_cpu0_int_status_r());
 
 	for (i = 0; i < dev->info.nb_pts; i++)
-		INIT_WORK(&intr->syncpt[i].work, t20_syncpt_thresh_cascade_fn);
+		init_kthread_work(&intr->syncpt[i].work, t20_syncpt_thresh_cascade_fn);
 
 	err = request_irq(intr->syncpt_irq, t20_syncpt_thresh_cascade_isr,
 			  IRQF_SHARED, "host1x_syncpt", intr);
@@ -102,7 +102,7 @@ static void t20_free_syncpt_irq(struct nvhost_intr *intr)
 {
 	if (intr->syncpt_irq_requested) {
 		free_irq(intr->syncpt_irq, intr);
-		flush_workqueue(intr->wq);
+		flush_kthread_worker(&intr->worker);
 		intr->syncpt_irq_requested = false;
 	}
 }
