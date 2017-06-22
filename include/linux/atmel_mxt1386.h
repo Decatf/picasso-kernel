@@ -15,7 +15,7 @@
 #ifndef _LINUX_MXT1386_H
 #define _LINUX_MXT1386_H
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_PM_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
 
@@ -754,7 +754,7 @@ struct mxt_data {
 #ifdef MXT_CALIBRATE_WORKAROUND
 	struct delayed_work calibrate_dwork;
 #endif
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_PM_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
 	struct multi_touch_info mtouch_info[MXT_MAX_NUM_TOUCHES];
