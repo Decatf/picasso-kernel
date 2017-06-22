@@ -39,7 +39,7 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_PM_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
 
@@ -72,7 +72,7 @@ struct acc_data cal_data;
 struct mpu_private_data {
 	struct mldl_cfg mldl_cfg;
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_PM_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
 };
@@ -1002,7 +1002,7 @@ static long mpu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return retval;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_PM_EARLYSUSPEND
 void mpu3050_early_suspend(struct early_suspend *h)
 {
 	struct mpu_private_data *mpu = container_of(h,
@@ -1588,7 +1588,7 @@ int mpu3050_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 
 	mpu_accel_init(&mpu->mldl_cfg, client->adapter);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_PM_EARLYSUSPEND
 	mpu->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	mpu->early_suspend.suspend = mpu3050_early_suspend;
 	mpu->early_suspend.resume = mpu3050_early_resume;
@@ -1665,7 +1665,7 @@ static int mpu3050_remove(struct i2c_client *client)
 
 	dev_dbg(&client->adapter->dev, "%s\n", __func__);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_PM_EARLYSUSPEND
 	unregister_early_suspend(&mpu->early_suspend);
 #endif
 	mpu3050_close(mldl_cfg, client->adapter,
@@ -1718,7 +1718,7 @@ static struct i2c_driver mpu3050_driver = {
 		   },
 	.address_list = normal_i2c,
 	.shutdown = mpu_shutdown,	/* optional */
-#ifndef CONFIG_HAS_EARLYSUSPEND
+#ifndef CONFIG_PM_EARLYSUSPEND
 	.suspend = mpu_suspend,	/* optional */
 	.resume = mpu_resume,	/* optional */
 #endif
