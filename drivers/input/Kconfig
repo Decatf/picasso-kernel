@@ -200,6 +200,11 @@ config INPUT_KEYCOMBO
 	---help---
 	  Say Y here if you want to take action when some keys are pressed;
 
+config SAMSUNG_INPUT
+	tristate "Samsung input devices"
+	depends on INPUT
+	default y
+
 comment "Input Device Drivers"
 
 source "drivers/input/keyboard/Kconfig"
