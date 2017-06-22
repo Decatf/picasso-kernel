@@ -3119,7 +3119,7 @@ u8 mxt_valid_interrupt(void)
 	return 1;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_PM_EARLYSUSPEND
 static void mxt_early_suspend(struct early_suspend *h)
 {
 #ifndef MXT_SLEEP_POWEROFF
@@ -3609,12 +3609,12 @@ static int mxt_probe(struct i2c_client *client,
 		goto err_irq;
 	}
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_PM_EARLYSUSPEND
 	mxt->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	mxt->early_suspend.suspend = mxt_early_suspend;
 	mxt->early_suspend.resume = mxt_late_resume;
 	register_early_suspend(&mxt->early_suspend);
-#endif	/* CONFIG_HAS_EARLYSUSPEND */
+#endif	/* CONFIG_PM_EARLYSUSPEND */
 
 	/*
 	tsp_dev  = device_create(sec_class, NULL, 0, mxt, "sec_touchscreen");
@@ -3660,7 +3660,7 @@ static int mxt_probe(struct i2c_client *client,
 	return 0;
 
 err_sysfs_create_group:
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_PM_EARLYSUSPEND
 	unregister_early_suspend(&mxt->early_suspend);
 #endif
 	if (mxt->irq)
@@ -3703,9 +3703,9 @@ static int mxt_remove(struct i2c_client *client)
 	/* Close down sysfs entries */
 	sysfs_remove_group(&client->dev.kobj, &maxtouch_attr_group);
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
+#ifdef CONFIG_PM_EARLYSUSPEND
 	unregister_early_suspend(&mxt->early_suspend);
-#endif	/* CONFIG_HAS_EARLYSUSPEND */
+#endif	/* CONFIG_PM_EARLYSUSPEND */
 
 	/* Release IRQ so no queue will be scheduled */
 	if (mxt->irq)
@@ -3736,7 +3736,7 @@ static int mxt_remove(struct i2c_client *client)
 	return 0;
 }
 
-#if defined(CONFIG_PM) && !defined(CONFIG_HAS_EARLYSUSPEND)
+#if defined(CONFIG_PM) && !defined(CONFIG_PM_EARLYSUSPEND)
 static int mxt_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct mxt_data *mxt = i2c_get_clientdata(client);
