@@ -291,7 +291,7 @@ static int tegra_dc_ext_set_windowattr(struct tegra_dc_ext *ext,
 
 	return err;
 #else /* !CONFIG_ANDROID */
-	return 0;
+	return err;
 #endif /* !CONFIG_ANDROID */
 }
 
