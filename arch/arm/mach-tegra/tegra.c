@@ -55,6 +55,9 @@
 #include "reset.h"
 #include "sleep.h"
 
+static struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
+	{}
+};
 /*
  * Storage for debug-macro.S's state.
  *
@@ -115,7 +118,8 @@ static void __init tegra_dt_init(void)
 	 * devices
 	 */
 out:
-	of_platform_populate(NULL, of_default_bus_match_table, NULL, parent);
+	of_platform_populate(NULL, of_default_bus_match_table,
+				tegra20_auxdata_lookup, parent);
 }
 
 static void __init paz00_init(void)
