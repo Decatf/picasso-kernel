@@ -41,7 +41,7 @@ static int rpc_sema_minor = -1;
 
 static inline bool is_trpc_sema_file(struct file *file)
 {
-	dev_t rdev = file->f_dentry->d_inode->i_rdev;
+	dev_t rdev = file->f_path.dentry->d_inode->i_rdev;
 
 	if (MAJOR(rdev) == MISC_MAJOR && MINOR(rdev) == rpc_sema_minor)
 		return true;
