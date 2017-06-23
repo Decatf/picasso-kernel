@@ -88,6 +88,19 @@ struct tegra_ictlr_info {
 
 static struct tegra_ictlr_info *lic;
 
+#ifdef CONFIG_TEGRA_AVP
+void tegra_init_legacy_irq_cop(void)
+{
+	int i;
+
+	for (i = 0; i < num_ictlrs; i++) {
+		void __iomem *ictlr = lic->base[i];
+		writel(~0, ictlr + ICTLR_COP_IER_CLR);
+		writel(0, ictlr + ICTLR_COP_IEP_CLASS);
+	}
+}
+#endif
+
 static inline void tegra_ictlr_write_mask(struct irq_data *d, unsigned long reg)
 {
 	void __iomem *base = d->chip_data;
