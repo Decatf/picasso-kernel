@@ -1190,7 +1190,7 @@ DHDCFLAGS += -include "dhd_sec_feature.h"
 EXTRA_CFLAGS += -DCONFIG_DTS
 EXTRA_CFLAGS += -DDISABLE_IF_COUNTERS
 
-EXTRA_CFLAGS += $(DHDCFLAGS) -DDHD_DEBUG
+EXTRA_CFLAGS += $(DHDCFLAGS)
 EXTRA_CFLAGS += -DSRCBASE=\"$(src)\"
 EXTRA_CFLAGS += -I$(src)/include/ -I$(src)/
 EXTRA_CFLAGS += $(call cc-option, -Wunused-but-set-variable)
