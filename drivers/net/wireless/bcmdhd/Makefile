@@ -1187,6 +1187,9 @@ DHDCFLAGS += -include "dhd_sec_feature.h"
 
 #EXTRA_LDFLAGS += --strip-debug
 
+EXTRA_CFLAGS += -DCONFIG_DTS
+EXTRA_CFLAGS += -DDISABLE_IF_COUNTERS
+
 EXTRA_CFLAGS += $(DHDCFLAGS) -DDHD_DEBUG
 EXTRA_CFLAGS += -DSRCBASE=\"$(src)\"
 EXTRA_CFLAGS += -I$(src)/include/ -I$(src)/
