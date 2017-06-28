@@ -8795,6 +8795,9 @@ dhdsdio_suspend(void *context)
 	DHD_BUS_BUSY_CLEAR_SUSPEND_IN_PROGRESS(bus->dhd);
 	dhd_os_busbusy_wake(bus->dhd);
 	DHD_LINUX_GENERAL_UNLOCK(bus->dhd, flags);
+
+	DHD_ERROR(("%s return %d\n", __FUNCTION__, ret));
+
 	return ret;
 }
 
