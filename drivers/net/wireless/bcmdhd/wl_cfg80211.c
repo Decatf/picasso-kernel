@@ -10998,13 +10998,13 @@ static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *sdiofunc_dev
 #endif
 	wiphy_apply_custom_regulatory(wdev->wiphy, &brcm_regdom);
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0)) || defined(WL_VENDOR_EXT_SUPPORT)
-	WL_ERR(("Registering Vendor80211\n"));
-	err = wl_cfgvendor_attach(wdev->wiphy, dhd);
-	if (unlikely(err < 0)) {
-		WL_ERR(("Couldn not attach vendor commands (%d)\n", err));
-	}
-#endif /* (LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0)) || defined(WL_VENDOR_EXT_SUPPORT) */
+// #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0)) || defined(WL_VENDOR_EXT_SUPPORT)
+// 	WL_ERR(("Registering Vendor80211\n"));
+// 	err = wl_cfgvendor_attach(wdev->wiphy, dhd);
+// 	if (unlikely(err < 0)) {
+// 		WL_ERR(("Couldn not attach vendor commands (%d)\n", err));
+// 	}
+// #endif /* (LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0)) || defined(WL_VENDOR_EXT_SUPPORT) */
 
 	/* Now we can register wiphy with cfg80211 module */
 	err = wiphy_register(wdev->wiphy);
@@ -11032,9 +11032,9 @@ static void wl_free_wdev(struct bcm_cfg80211 *cfg)
 	if (wdev->wiphy) {
 		wiphy = wdev->wiphy;
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0)) || defined(WL_VENDOR_EXT_SUPPORT)
-		wl_cfgvendor_detach(wdev->wiphy);
-#endif /* (LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0)) || defined(WL_VENDOR_EXT_SUPPORT) */
+// #if (LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0)) || defined(WL_VENDOR_EXT_SUPPORT)
+// 		wl_cfgvendor_detach(wdev->wiphy);
+// #endif /* (LINUX_VERSION_CODE > KERNEL_VERSION(3, 14, 0)) || defined(WL_VENDOR_EXT_SUPPORT) */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0))
 		/* Reset wowlan & wowlan_config before Unregister to avoid  Kernel Panic */
 		WL_DBG(("wl_free_wdev Clearing wowlan Config \n"));
@@ -12401,27 +12401,27 @@ static s32 wl_handle_rssi_monitor_event(struct bcm_cfg80211 *cfg, bcm_struct_cfg
 	const wl_event_msg_t *e, void *data)
 {
 
-#if defined(WL_VENDOR_EXT_SUPPORT) || defined(CONFIG_BCMDHD_VENDOR_EXT)
-	u32 datalen = be32_to_cpu(e->datalen);
-	struct net_device *ndev = cfgdev_to_wlc_ndev(cfgdev, cfg);
-	struct wiphy *wiphy = bcmcfg_to_wiphy(cfg);
+// #if defined(WL_VENDOR_EXT_SUPPORT) || defined(CONFIG_BCMDHD_VENDOR_EXT)
+// 	u32 datalen = be32_to_cpu(e->datalen);
+// 	struct net_device *ndev = cfgdev_to_wlc_ndev(cfgdev, cfg);
+// 	struct wiphy *wiphy = bcmcfg_to_wiphy(cfg);
 
-	if (datalen) {
-		wl_rssi_monitor_evt_t *evt_data = (wl_rssi_monitor_evt_t *)data;
-		if (evt_data->version == RSSI_MONITOR_VERSION) {
-			dhd_rssi_monitor_evt_t monitor_data;
-			monitor_data.version = DHD_RSSI_MONITOR_EVT_VERSION;
-			monitor_data.cur_rssi = evt_data->cur_rssi;
-			memcpy(&monitor_data.BSSID, &e->addr, ETHER_ADDR_LEN);
-			wl_cfgvendor_send_async_event(wiphy, ndev,
-				GOOGLE_RSSI_MONITOR_EVENT,
-				&monitor_data, sizeof(monitor_data));
-		} else {
-			WL_ERR(("Version mismatch %d, expected %d", evt_data->version,
-			       RSSI_MONITOR_VERSION));
-		}
-	}
-#endif /* WL_VENDOR_EXT_SUPPORT || CONFIG_BCMDHD_VENDOR_EXT */
+// 	if (datalen) {
+// 		wl_rssi_monitor_evt_t *evt_data = (wl_rssi_monitor_evt_t *)data;
+// 		if (evt_data->version == RSSI_MONITOR_VERSION) {
+// 			dhd_rssi_monitor_evt_t monitor_data;
+// 			monitor_data.version = DHD_RSSI_MONITOR_EVT_VERSION;
+// 			monitor_data.cur_rssi = evt_data->cur_rssi;
+// 			memcpy(&monitor_data.BSSID, &e->addr, ETHER_ADDR_LEN);
+// 			wl_cfgvendor_send_async_event(wiphy, ndev,
+// 				GOOGLE_RSSI_MONITOR_EVENT,
+// 				&monitor_data, sizeof(monitor_data));
+// 		} else {
+// 			WL_ERR(("Version mismatch %d, expected %d", evt_data->version,
+// 			       RSSI_MONITOR_VERSION));
+// 		}
+// 	}
+// #endif /* WL_VENDOR_EXT_SUPPORT || CONFIG_BCMDHD_VENDOR_EXT */
 	return BCME_OK;
 }
 #endif /* RSSI_MONITOR_SUPPORT */
