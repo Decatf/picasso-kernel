@@ -9,6 +9,8 @@
  *
  */
 
+// #define DEBUG 1
+
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/cpufreq.h>
@@ -18,19 +20,23 @@
 #include <linux/regulator/consumer.h>
 #include <linux/clk-provider.h>
 
-#define DVFS_CLIENT(_name, _freqs)					\
-	static struct dvfs_client dvfs_##_name##_client = {		\
+#include <soc/tegra/fuse.h>
+
+#define MAX_DVFS_FREQS	24
+
+#define DVFS_CLIENT(_name, _speedo_id, _process_id, _freqs...)			\
+	{								\
 		.clk = NULL,						\
 		.clk_name = #_name,					\
+		.speedo_id = _speedo_id,					\
+		.process_id = _process_id,				\
 		.freqs = { _freqs, -1 },				\
 	}
 
-#define DVFS(_name, _voltages, _client...)				\
-	static struct dvfs_client *dvfs_##_name##_clients[] = {		\
-		_client, NULL						\
-	};								\
+#define DVFS(_name, _clients, _voltages)				\
 	static struct dvfs_domain dvfs_##_name = {			\
-		.clients = dvfs_##_name##_clients,			\
+		.clients = _clients,			\
+		.nclients = ARRAY_SIZE(_clients),			\
 		.voltages_mv =  { _voltages, },				\
 	}
 
@@ -38,56 +44,14 @@
 #define _170uV			170000
 
 /* CPU domain defines */
-#define CPU_MAX_VDD		1125
+#define CPU_MAX_VDD		1000
 
-#define CPU_MILLIVOLTS		750,	775,	825,	875,	925, \
-				950,	1000,	1100,	CPU_MAX_VDD
-
-#define CPU_FREQS		216,	312,	456,	608,	750, \
-				760,	816,	912,	1000
+#define CPU_MILLIVOLTS		750,	750,	800,	850,	875, 950,	975,	CPU_MAX_VDD
 
 /* core domain defines */
 #define CORE_MAX_VDD		1300
 
-#define CORE_MILLIVOLTS		1100,	1125,	1150,	1200, \
-				1225,	1250,	1275,	CORE_MAX_VDD
-
-#define EMC_FREQS		0,	150000,	300000,	600000
-
-#define DISP1_FREQS		158000,	158000,	190000
-
-#define DISP2_FREQS		158000,	158000,	190000
-
-#define HDMI_FREQS		0,	0,	0,	148500
-
-#define HOST1X_FREQS		104500,	133000,	166000
-
-#define EPP_FREQS		133000,	171000,	247000,	300000
-
-#define G2D_FREQS		133000,	171000,	247000,	300000
-
-#define G3D_FREQS		142500,	190000,	275500,	300000
-
-#define MPE_FREQS		142500,	190000,	275500,	300000
-
-#define VI_FREQS		85000,	100000,	150000
-
-#define CSI_FREQS		0,	0,	0,	0, \
-				72000
-
-#define SCLK_FREQS		123500,	159500,	207000,	240000, \
-				264000,	277500
-
-#define VDE_FREQS		123500,	152000,	237500,	300000
-
-#define MIPI_FREQS		40000,	40000,	40000,	40000, \
-				60000
-
-#define USBD_FREQS		400000,	400000,	400000,	480000
-
-#define USB2_FREQS		0,	0,	480000
-
-#define USB3_FREQS		400000,	400000,	400000,	480000
+#define CORE_MILLIVOLTS		950, 1000, 1100, 1200, 1225, 1275, CORE_MAX_VDD
 
 /* RTC domain defines */
 #define RTC_MAX_VDD		1300
@@ -106,43 +70,48 @@ struct dvfs_client {
 	struct mutex		deferred_work_lock;
 	struct clk		*clk;
 	const char		*clk_name;
+	int		speedo_id;
+	int		process_id;
 	unsigned		index;
-	int			freqs[];
+	int			freqs[MAX_DVFS_FREQS];
 };
 
 struct dvfs_domain {
 	struct list_head	active_clients;
-	struct dvfs_client	**clients;
+	struct dvfs_client	*clients;
+	int			nclients;
 	int			voltages_mv[];
 };
 
-DVFS_CLIENT(cpu, CPU_FREQS);
-DVFS(cpu, CPU_MILLIVOLTS, &dvfs_cpu_client);
 
-// DVFS_CLIENT(disp1, DISP1_FREQS);
-// DVFS_CLIENT(disp2, DISP2_FREQS);
-DVFS_CLIENT(hdmi, HDMI_FREQS);
-DVFS_CLIENT(emc, EMC_FREQS);
-DVFS_CLIENT(host1x, HOST1X_FREQS);
-DVFS_CLIENT(epp, EPP_FREQS);
-DVFS_CLIENT(2d, G2D_FREQS);
-DVFS_CLIENT(3d, G3D_FREQS);
-DVFS_CLIENT(mpe, MPE_FREQS);
-DVFS_CLIENT(vi, VI_FREQS);
-DVFS_CLIENT(csi, CSI_FREQS);
-DVFS_CLIENT(sclk, SCLK_FREQS);
-DVFS_CLIENT(vde, VDE_FREQS);
-DVFS_CLIENT(mipi, MIPI_FREQS);
-DVFS_CLIENT(usbd, USBD_FREQS);
-DVFS_CLIENT(usb2, USB2_FREQS);
-DVFS_CLIENT(usb3, USB3_FREQS);
-DVFS(core, CORE_MILLIVOLTS,
-	/*&dvfs_disp1_client,	&dvfs_disp2_client,*/	&dvfs_hdmi_client,
-	&dvfs_emc_client,	&dvfs_host1x_client,	&dvfs_epp_client,
-	&dvfs_2d_client,	&dvfs_3d_client,	&dvfs_mpe_client,
-	&dvfs_vi_client,	&dvfs_csi_client,	&dvfs_sclk_client,
-	&dvfs_vde_client,	&dvfs_mipi_client,	&dvfs_usbd_client,
-	&dvfs_usb2_client,	&dvfs_usb3_client);
+static struct dvfs_client dvfs_cpu_clients[] = {
+	DVFS_CLIENT(cpu, 1, 1, 216,	312,	456,	608,	750, 816,	912,	1000),
+};
+
+static struct dvfs_client dvfs_core_clients[] = {
+	// DVFS_CLIENT(disp1, 158000,	158000,	190000),
+	// DVFS_CLIENT(disp2, 158000,	158000,	190000),
+
+	DVFS_CLIENT(host1x, -1, -1, 133000,	166000),
+	DVFS_CLIENT(epp, -1, -1, 133000,	171000,	247000,	300000),
+	DVFS_CLIENT(2d, -1, -1, 133000,	171000,	247000,	300000),
+	DVFS_CLIENT(hdmi, -1, -1, 0,	0,	0,	148500),
+
+	DVFS_CLIENT(emc, -1, 2, 57000,  333000, 380000, 666000),
+	DVFS_CLIENT(3d, -1, 2, 218500, 256500, 323000, 380000, 400000),
+	DVFS_CLIENT(mpe, -1, 2, 190000,	237500,	300000),
+	DVFS_CLIENT(vi, -1, 2, 85000,	100000,	150000),
+	DVFS_CLIENT(csi, -1, 2, 0,	0,	0,	0, 72000),
+	DVFS_CLIENT(sclk, -1, 2, 152000,	180500,	229500,	260000, 285000,	300000),
+	DVFS_CLIENT(vde, -1, 2, 152000,	209000,	285000,	300000),
+	DVFS_CLIENT(mipi, -1, 2, 40000,	40000,	40000,	40000, 60000),
+	DVFS_CLIENT(usbd, -1, 2, 400000,	400000,	400000,	480000),
+	DVFS_CLIENT(usb2, -1, 2, 0,	0,	480000),
+	DVFS_CLIENT(usb3, -1, 2, 400000,	400000,	400000,	480000),
+};
+
+DVFS(cpu, dvfs_cpu_clients, CPU_MILLIVOLTS);
+DVFS(core, dvfs_core_clients, CORE_MILLIVOLTS);
 
 static void dvfs_update_cpu_voltage(int new_uV)
 {
@@ -187,6 +156,9 @@ static void update_core_vdd(int new_core_vdd)
 	int current_core_vdd = regulator_get_voltage(core_reg);
 	int core_rtc_delta = new_core_vdd - current_rtc_vdd;
 
+	dev_dbg(dvfs_dev, "current_core_vdd=%duV, current_rtc_vdd=%duV, core_rtc_delta=%duV\n",
+		current_core_vdd, current_rtc_vdd, core_rtc_delta);
+
 	if (abs(core_rtc_delta) > _170uV) {
 		int update_step, steps_nb;
 
@@ -212,7 +184,7 @@ static void update_core_vdd(int new_core_vdd)
 
 static int dvfs_get_cpu_voltage(void)
 {
-	struct dvfs_client *cpu_client = dvfs_cpu.clients[0];
+	struct dvfs_client *cpu_client = &dvfs_cpu.clients[0];
 
 	dev_dbg(dvfs_dev, "CPU client index = %d\n", cpu_client->index);
 
@@ -225,8 +197,8 @@ static int dvfs_get_core_voltage(void)
 	unsigned dvfs_core_index = 0;
 
 	list_for_each_entry(client, &dvfs_core.active_clients, node) {
-		dev_dbg(dvfs_dev, "active core client %s index = %d\n",
-			client->clk_name, client->index);
+		dev_dbg(dvfs_dev, "active core client %s index = %d freq = %dhz\n",
+			client->clk_name, client->index, client->freqs[client->index]);
 		dvfs_core_index = max(client->index, dvfs_core_index);
 	}
 
@@ -272,9 +244,19 @@ static void update_voltages(int new_cpu_vdd, int new_core_vdd)
  */
 static void update_freq_index(struct dvfs_client *c, unsigned long freq)
 {
-	for (c->index = 0; c->freqs[c->index + 1] >= 0; c->index++)
-		if (c->freqs[c->index] * 1000 >= freq)
-			break;
+	// for (c->index = 0; c->freqs[c->index + 1] >= 0; c->index++)
+	// 	if (c->freqs[c->index] * 1000 >= freq)
+	// 		break;
+
+
+	int i = 0;
+	while (c->freqs[i + 1] >= 0 && freq > c->freqs[i] * 1000) {
+		dev_dbg(dvfs_dev, "%s freq=%lu table_freq=%d i=%d\n",
+			c->clk_name, freq, c->freqs[i] * 1000, i);
+		i++;
+	}
+
+	c->index = i;
 }
 
 static int dvfs_cpu_change_notify(struct notifier_block *nb,
@@ -451,7 +433,8 @@ static int dvfs_core_change_notify(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
-static void dvfs_init(struct dvfs_domain *dvfs)
+static void dvfs_init(struct dvfs_domain *dvfs,
+	int soc_speedo_id, int process_id)
 {
 	struct dvfs_client *client;
 	unsigned long rate;
@@ -460,8 +443,16 @@ static void dvfs_init(struct dvfs_domain *dvfs)
 
 	INIT_LIST_HEAD(&dvfs->active_clients);
 
-	for (i = 0; dvfs->clients[i] != NULL; i++) {
-		client = dvfs->clients[i];
+	for (i = 0; i < dvfs->nclients; i++) {
+		client = &dvfs->clients[i];
+
+		if (client->speedo_id != -1 &&
+				client->speedo_id != soc_speedo_id)
+			continue;
+
+		if (client->process_id != -1 &&
+				client->process_id != process_id)
+			continue;
 
 		client->clk = devm_clk_get(dvfs_dev, client->clk_name);
 		if (IS_ERR(client->clk)) {
@@ -525,8 +516,8 @@ static void dvfs_release(struct dvfs_domain *dvfs)
 	struct dvfs_client *client;
 	int i;
 
-	for (i = 0; dvfs->clients[i] != NULL; i++) {
-		client = dvfs->clients[i];
+	for (i = 0; i < dvfs->nclients; i++) {
+		client = &dvfs->clients[i];
 
 		if (client->clk) {
 			if (dvfs == &dvfs_core)
@@ -555,6 +546,13 @@ static void dvfs_stop_locked(void)
 
 static int tegra_dvfs_probe(struct platform_device *pdev)
 {
+	int soc_speedo_id = tegra_sku_info.soc_speedo_id;
+	int cpu_process_id = tegra_sku_info.cpu_process_id;
+	int core_process_id = tegra_sku_info.core_process_id;
+
+	pr_info("%s: soc_speedo_id=%d cpu_process_id=%d core_process_id=%d\n",
+		__func__, soc_speedo_id, cpu_process_id, core_process_id);
+
 	dvfs_dev = &pdev->dev;
 
 	cpu_reg = devm_regulator_get(dvfs_dev, "cpu");
@@ -577,8 +575,8 @@ static int tegra_dvfs_probe(struct platform_device *pdev)
 
 	mutex_lock(&dvfs_lock);
 
-	dvfs_init(&dvfs_cpu);
-	dvfs_init(&dvfs_core);
+	dvfs_init(&dvfs_cpu, soc_speedo_id, cpu_process_id);
+	dvfs_init(&dvfs_core, soc_speedo_id, core_process_id);
 
 	dvfs_start_locked();
 
@@ -594,8 +592,8 @@ static void dvfs_lock_all_core_clients(void)
 	struct dvfs_client *client;
 	int i;
 
-	for (i = 0; dvfs_core.clients[i] != NULL; i++) {
-		client = dvfs_core.clients[i];
+	for (i = 0; i < dvfs_core.nclients; i++) {
+		client = &dvfs_core.clients[i];
 
 		if (client->clk)
 			mutex_lock(&client->deferred_work_lock);
@@ -607,8 +605,8 @@ static void dvfs_unlock_all_core_clients(void)
 	struct dvfs_client *client;
 	int i;
 
-	for (i = 0; dvfs_core.clients[i] != NULL; i++) {
-		client = dvfs_core.clients[i];
+	for (i = 0; i < dvfs_core.nclients; i++) {
+		client = &dvfs_core.clients[i];
 
 		if (client->clk)
 			mutex_unlock(&client->deferred_work_lock);
