@@ -30,8 +30,6 @@
 /* Spacing between sync registers */
 #define REGISTER_STRIDE 4
 
-/*** HW host sync management ***/
-
 static void t20_intr_syncpt_thresh_isr(struct nvhost_intr_syncpt *syncpt);
 
 static void t20_syncpt_thresh_cascade_fn(struct work_struct *work)
@@ -64,14 +62,11 @@ static irqreturn_t t20_syncpt_thresh_cascade_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void t20_request_syncpt_irq(struct nvhost_intr *intr)
+static void t20_intr_init_host_sync(struct nvhost_intr *intr)
 {
 	struct nvhost_master *dev = intr_to_dev(intr);
 	void __iomem *sync_regs = dev->sync_aperture;
 	int i, err;
-
-	if (intr->syncpt_irq_requested)
-		return;
 
 	writel(0xffffffffUL,
 	       sync_regs + host1x_sync_syncpt_thresh_int_disable_r());
@@ -81,7 +76,7 @@ static void t20_request_syncpt_irq(struct nvhost_intr *intr)
 	for (i = 0; i < dev->info.nb_pts; i++)
 		INIT_WORK(&intr->syncpt[i].work, t20_syncpt_thresh_cascade_fn);
 
-	err = request_irq(intr->syncpt_irq, t20_syncpt_thresh_cascade_isr,
+	err = request_irq(intr->host_syncpt_irq_base, t20_syncpt_thresh_cascade_isr,
 			  IRQF_SHARED, "host1x_syncpt", intr);
 	WARN_ON(IS_ERR_VALUE(err));
 
@@ -94,17 +89,6 @@ static void t20_request_syncpt_irq(struct nvhost_intr *intr)
 	 * otherwise on ap20.
 	 */
 	writel(0xff, sync_regs + host1x_sync_ctxsw_timeout_cfg_r());
-
-	intr->syncpt_irq_requested = true;
-}
-
-static void t20_free_syncpt_irq(struct nvhost_intr *intr)
-{
-	if (intr->syncpt_irq_requested) {
-		free_irq(intr->syncpt_irq, intr);
-		flush_workqueue(intr->wq);
-		intr->syncpt_irq_requested = false;
-	}
 }
 
 static void t20_intr_set_host_clocks_per_usec(struct nvhost_intr *intr, u32 cpm)
@@ -143,6 +127,14 @@ static void t20_intr_disable_syncpt_intr(struct nvhost_intr *intr, u32 id)
 	writel(BIT_MASK(id), sync_regs +
 			host1x_sync_syncpt_thresh_int_disable_r() +
 			BIT_WORD(id) * REGISTER_STRIDE);
+
+	/* clear status for both cpu's */
+	writel(BIT_MASK(id), sync_regs +
+		host1x_sync_syncpt_thresh_cpu0_int_status_r() +
+		BIT_WORD(id) * REGISTER_STRIDE);
+	writel(BIT_MASK(id), sync_regs +
+		host1x_sync_syncpt_thresh_cpu1_int_status_r() +
+		BIT_WORD(id) * REGISTER_STRIDE);
 }
 
 static void t20_intr_disable_all_syncpt_intrs(struct nvhost_intr *intr)
@@ -220,9 +212,6 @@ static int t20_intr_request_host_general_irq(struct nvhost_intr *intr)
 	void __iomem *sync_regs = intr_to_dev(intr)->sync_aperture;
 	int err;
 
-	if (intr->host_general_irq_requested)
-		return 0;
-
 	/* master disable for general (not syncpt) host interrupts */
 	writel(0, sync_regs + host1x_sync_intmask_r());
 
@@ -239,7 +228,7 @@ static int t20_intr_request_host_general_irq(struct nvhost_intr *intr)
 	writel(BIT(30) | BIT(31), sync_regs + host1x_sync_hintmask_ext_r());
 
 	/* enable extra interrupt sources */
-	writel(BIT(31), sync_regs + host1x_sync_hintmask_r());
+	writel(BIT(12) | BIT(31), sync_regs + host1x_sync_hintmask_r());
 
 	/* enable host module interrupt to CPU0 */
 	writel(BIT(0), sync_regs + host1x_sync_intc0mask_r());
@@ -247,26 +236,28 @@ static int t20_intr_request_host_general_irq(struct nvhost_intr *intr)
 	/* master enable for general (not syncpt) host interrupts */
 	writel(BIT(0), sync_regs + host1x_sync_intmask_r());
 
-	intr->host_general_irq_requested = true;
-
 	return err;
 }
 
 static void t20_intr_free_host_general_irq(struct nvhost_intr *intr)
 {
-	if (intr->host_general_irq_requested) {
-		void __iomem *sync_regs = intr_to_dev(intr)->sync_aperture;
+	void __iomem *sync_regs = intr_to_dev(intr)->sync_aperture;
 
-		/* master disable for general (not syncpt) host interrupts */
-		writel(0, sync_regs + host1x_sync_intmask_r());
+	/* master disable for general (not syncpt) host interrupts */
+	writel(0, sync_regs + host1x_sync_intmask_r());
 
-		free_irq(intr->host_general_irq, intr);
-		intr->host_general_irq_requested = false;
-	}
+	free_irq(intr->host_general_irq, intr);
+}
+
+
+static void t20_free_syncpt_irq(struct nvhost_intr *intr)
+{
+	free_irq(intr->host_syncpt_irq_base, intr);
+	flush_workqueue(intr->wq);
 }
 
 static const struct nvhost_intr_ops host1x_intr_ops = {
-	.request_syncpt_irq = t20_request_syncpt_irq,
+	.init_host_sync = t20_intr_init_host_sync,
 	.free_syncpt_irq = t20_free_syncpt_irq,
 	.set_host_clocks_per_usec = t20_intr_set_host_clocks_per_usec,
 	.set_syncpt_threshold = t20_intr_set_syncpt_threshold,
