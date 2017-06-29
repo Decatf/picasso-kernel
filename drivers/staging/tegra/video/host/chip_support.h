@@ -123,8 +123,7 @@ struct nvhost_syncpt_ops {
 };
 
 struct nvhost_intr_ops {
-	void (*request_syncpt_irq)(struct nvhost_intr *);
-	void (*free_syncpt_irq)(struct nvhost_intr *);
+	void (*init_host_sync)(struct nvhost_intr *);
 	void (*set_host_clocks_per_usec)(
 		struct nvhost_intr *, u32 clocks);
 	void (*set_syncpt_threshold)(
@@ -134,6 +133,7 @@ struct nvhost_intr_ops {
 	void (*disable_all_syncpt_intrs)(struct nvhost_intr *);
 	int  (*request_host_general_irq)(struct nvhost_intr *);
 	void (*free_host_general_irq)(struct nvhost_intr *);
+	void (*free_syncpt_irq)(struct nvhost_intr *);
 };
 
 struct nvhost_dev_ops {
