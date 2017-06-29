@@ -563,6 +563,12 @@ config SAMSUNG_JACK
 
 	 If unsure, say N.
 
+config BCM4751_POWER
+	bool "BCM4751(GPS) power-control driver"
+	default n
+	help
+	  Adds to support power control of BCM4751 GPS module
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
