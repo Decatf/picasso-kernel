@@ -30,7 +30,6 @@
 #include <linux/regulator/consumer.h>
 #include <linux/of_platform.h>
 #include <linux/mmc/host.h>
-#include <linux/mmc/sdhci.h>
 #include <linux/file.h>
 #include <linux/input.h>
 #include <linux/atmel_mxt1386.h>

@@ -3846,8 +3846,8 @@ static struct i2c_driver mxt_driver = {
 	.id_table	= mxt_idtable,
 	.probe		= mxt_probe,
 	.remove		= mxt_remove,
-	.suspend	= mxt_suspend,
-	.resume		= mxt_resume,
+	// .suspend	= mxt_suspend,
+	// .resume		= mxt_resume,
 
 };
 
