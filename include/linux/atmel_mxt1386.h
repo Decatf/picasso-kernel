@@ -757,6 +757,10 @@ struct mxt_data {
 #ifdef CONFIG_PM_EARLYSUSPEND
 	struct early_suspend early_suspend;
 #endif
+
+	struct work_struct suspend_work;
+	int suspended;
+
 	struct multi_touch_info mtouch_info[MXT_MAX_NUM_TOUCHES];
 	bool new_msgs;
 	bool fherr_cnt_no_ta_calready;
