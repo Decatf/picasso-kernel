@@ -373,8 +373,8 @@ static struct i2c_driver isa1200_vibrator_i2c_driver = {
 	},
 	.probe     = isa1200_vibrator_i2c_probe,
 	.id_table  = isa1200_vibrator_device_id,
-	.suspend	= isa1200_vibrator_suspend,
-	.resume	= isa1200_vibrator_resume,
+	// .suspend	= isa1200_vibrator_suspend,
+	// .resume	= isa1200_vibrator_resume,
 };
 
 module_i2c_driver(isa1200_vibrator_i2c_driver);

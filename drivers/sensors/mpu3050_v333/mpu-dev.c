@@ -1757,8 +1757,8 @@ static struct i2c_driver mpu3050_driver = {
 		   },
 	.address_list = normal_i2c,
 	.shutdown = mpu_shutdown,	/* optional */
-	.suspend = mpu_suspend,	/* optional */
-	.resume = mpu_resume,	/* optional */
+	// .suspend = mpu_suspend,	/* optional */
+	// .resume = mpu_resume,	/* optional */
 };
 
 module_i2c_driver(mpu3050_driver);
