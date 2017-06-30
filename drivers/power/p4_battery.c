@@ -85,9 +85,9 @@ struct battery_data {
 	struct device		*dev;
 	struct p3_battery_platform_data *pdata;
 	struct battery_info	info;
-	struct power_supply	psy_battery;
-	struct power_supply	psy_usb;
-	struct power_supply	psy_ac;
+	struct power_supply	*psy_battery;
+	struct power_supply	*psy_usb;
+	struct power_supply	*psy_ac;
 	struct workqueue_struct	*p3_TA_workqueue;
 #ifdef CONFIG_TARGET_LOCALE_KOR
 	struct workqueue_struct	*low_bat_comp_workqueue;
@@ -373,8 +373,7 @@ static int is_over_abs_time(struct battery_data *battery)
 
 static int p3_get_bat_level(struct power_supply *bat_ps)
 {
-	struct battery_data *battery = container_of(bat_ps,
-				struct battery_data, psy_battery);
+	struct battery_data *battery = power_supply_get_drvdata(bat_ps);
 	int fg_soc;
 	int fg_vfsoc;
 	int fg_vcell;
@@ -551,8 +550,7 @@ __end__:
 
 static int p3_get_bat_vol(struct power_supply *bat_ps)
 {
-	struct battery_data *battery = container_of(bat_ps,
-				struct battery_data, psy_battery);
+	struct battery_data *battery = power_supply_get_drvdata(bat_ps);
 	return battery->info.batt_vol;
 }
 
@@ -662,8 +660,7 @@ static void p3_temp_control(struct battery_data *battery, int mode)
 
 static int p3_get_bat_temp(struct power_supply *bat_ps)
 {
-	struct battery_data *battery = container_of(bat_ps,
-				struct battery_data, psy_battery);
+	struct battery_data *battery = power_supply_get_drvdata(bat_ps);
 	int health = battery->info.batt_health;
 	int update = 0;
 	int battery_temp;
@@ -787,8 +784,7 @@ static int p3_bat_get_property(struct power_supply *bat_ps,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
 {
-	struct battery_data *battery = container_of(bat_ps,
-				struct battery_data, psy_battery);
+	struct battery_data *battery = power_supply_get_drvdata(bat_ps);
 
 	pr_debug("psp = %d", psp);
 	switch (psp) {
@@ -822,8 +818,7 @@ static int p3_usb_get_property(struct power_supply *usb_ps,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
 {
-	struct battery_data *battery = container_of(usb_ps,
-				struct battery_data, psy_usb);
+	struct battery_data *battery = power_supply_get_drvdata(usb_ps);
 
 	enum charger_type charger = battery->info.charging_source;
 
@@ -846,8 +841,7 @@ static int p3_ac_get_property(struct power_supply *ac_ps,
 		enum power_supply_property psp,
 		union power_supply_propval *val)
 {
-	struct battery_data *battery = container_of(ac_ps,
-				struct battery_data, psy_ac);
+	struct battery_data *battery = power_supply_get_drvdata(ac_ps);
 
 	enum charger_type charger = battery->info.charging_source;
 
@@ -1048,7 +1042,7 @@ static ssize_t p3_bat_store(struct device *dev,
 			else
 				test_batterydata->info.force_usb_charging = false;
 			ret = count;
-			p3_bat_status_update(&test_batterydata->psy_battery);
+			p3_bat_status_update(test_batterydata->psy_battery);
 		}
 		break;
 	case BATT_RESET_SOC:
@@ -1059,7 +1053,7 @@ static ssize_t p3_bat_store(struct device *dev,
 			}
 			ret = count;
 		}
-		p3_bat_status_update(&test_batterydata->psy_battery);
+		p3_bat_status_update(test_batterydata->psy_battery);
 		pr_debug("Reset SOC:%d ", x);
 		break;
 	case BATT_RESET_CAP:
@@ -1240,8 +1234,7 @@ static int p3_cable_status_update(struct battery_data *battery, int status)
 
 static void p3_bat_status_update(struct power_supply *bat_ps)
 {
-	struct battery_data *battery = container_of(bat_ps,
-				struct battery_data, psy_battery);
+	struct battery_data *battery = power_supply_get_drvdata(bat_ps);
 
 	int old_level, old_temp, old_health, old_is_full;
 	int current_charging_status;
@@ -1323,7 +1316,7 @@ static void p3_bat_work(struct work_struct *work)
 	unsigned long flags;
 
 	pr_debug("bat work ");
-	p3_bat_status_update(&battery->psy_battery);
+	p3_bat_status_update(battery->psy_battery);
 	battery->last_poll = ktime_get_boottime();
 
 	/* prevent suspend before starting the alarm */
@@ -1435,7 +1428,7 @@ int _low_battery_alarm_(struct battery_data *battery)
 		pr_info("soc = 0! Power Off!! ");
 		battery->info.level = 0;
 		__pm_wakeup_event(&battery->vbus_wake_source, 1000);
-		power_supply_changed(&battery->psy_battery);
+		power_supply_changed(battery->psy_battery);
 	}
 
 	return 0;
@@ -1685,6 +1678,50 @@ static int p3_bat_parse_dt(struct p3_battery_platform_data *pdata,
 	return 0;
 }
 
+static const struct power_supply_desc psy_battery_desc = {
+	.name		= "battery",
+	.type		= POWER_SUPPLY_TYPE_BATTERY,
+	.properties	= p3_battery_properties,
+	.num_properties	= ARRAY_SIZE(p3_battery_properties),
+	.get_property	= p3_bat_get_property,
+	// .external_power_changed = collie_bat_external_power_changed,
+	// .use_for_apm	= 1,
+};
+
+static const struct power_supply_desc psy_usb_desc = {
+	.name		= "usb",
+	.type		= POWER_SUPPLY_TYPE_USB,
+	.properties	= p3_power_properties,
+	.num_properties	= ARRAY_SIZE(p3_power_properties),
+	.get_property	= p3_usb_get_property,
+	// .external_power_changed = collie_bat_external_power_changed,
+	// .use_for_apm	= 1,
+};
+
+static const struct power_supply_desc psy_ac_desc = {
+	.name		= "ac",
+	.type		= POWER_SUPPLY_TYPE_MAINS,
+	.properties	= p3_power_properties,
+	.num_properties	= ARRAY_SIZE(p3_power_properties),
+	.get_property	= p3_ac_get_property,
+	// .external_power_changed = collie_bat_external_power_changed,
+	// .use_for_apm	= 1,
+};
+
+static const struct power_supply_config psy_battery_cfg = {
+
+};
+
+static const struct power_supply_config psy_usb_cfg = {
+	.supplied_to = supply_list,
+	.num_supplicants = ARRAY_SIZE(supply_list),
+};
+
+static const struct power_supply_config psy_ac_cfg = {
+	.supplied_to = supply_list,
+	.num_supplicants = ARRAY_SIZE(supply_list),
+};
+
 static int p3_bat_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1737,27 +1774,18 @@ static int p3_bat_probe(struct platform_device *pdev)
 	battery->info.abstimer_is_active = 0;
 	battery->is_first_check = true;
 
-	battery->psy_battery.name = "battery";
-	battery->psy_battery.type = POWER_SUPPLY_TYPE_BATTERY;
-	battery->psy_battery.properties = p3_battery_properties;
-	battery->psy_battery.num_properties = ARRAY_SIZE(p3_battery_properties);
-	battery->psy_battery.get_property = p3_bat_get_property;
 
-	battery->psy_usb.name = "usb";
-	battery->psy_usb.type = POWER_SUPPLY_TYPE_USB;
-	battery->psy_usb.supplied_to = supply_list;
-	battery->psy_usb.num_supplicants = ARRAY_SIZE(supply_list);
-	battery->psy_usb.properties = p3_power_properties;
-	battery->psy_usb.num_properties = ARRAY_SIZE(p3_power_properties);
-	battery->psy_usb.get_property = p3_usb_get_property;
+	battery->psy_battery = power_supply_register(&pdev->dev,
+		&psy_battery_desc, &psy_battery_cfg);
+	battery->psy_battery->drv_data = battery;
 
-	battery->psy_ac.name = "ac";
-	battery->psy_ac.type = POWER_SUPPLY_TYPE_MAINS;
-	battery->psy_ac.supplied_to = supply_list;
-	battery->psy_ac.num_supplicants = ARRAY_SIZE(supply_list);
-	battery->psy_ac.properties = p3_power_properties;
-	battery->psy_ac.num_properties = ARRAY_SIZE(p3_power_properties);
-	battery->psy_ac.get_property = p3_ac_get_property;
+	battery->psy_usb = power_supply_register(&pdev->dev,
+		&psy_usb_desc, &psy_usb_cfg);
+	battery->psy_usb->drv_data = battery;
+
+	battery->psy_ac = power_supply_register(&pdev->dev,
+		&psy_ac_desc, &psy_ac_cfg);
+	battery->psy_ac->drv_data = battery;
 
 	mutex_init(&battery->work_lock);
 
@@ -1805,29 +1833,29 @@ static int p3_bat_probe(struct platform_device *pdev)
 	hrtimer_init(&battery->hrtimer, CLOCK_BOOTTIME, HRTIMER_MODE_ABS);
 	battery->hrtimer.function = &p3_battery_alarm;
 
-	ret = power_supply_register(&pdev->dev, &battery->psy_battery);
-	if (ret) {
-		pr_err("Failed to register battery power supply.\n");
-		goto err_battery_psy_register;
-	}
+	// ret = power_supply_register(&pdev->dev, &battery->psy_battery);
+	// if (ret) {
+	// 	pr_err("Failed to register battery power supply.\n");
+	// 	goto err_battery_psy_register;
+	// }
 
-	ret = power_supply_register(&pdev->dev, &battery->psy_usb);
-	if (ret) {
-		pr_err("Failed to register USB power supply.\n");
-		goto err_usb_psy_register;
-	}
+	// ret = power_supply_register(&pdev->dev, &battery->psy_usb);
+	// if (ret) {
+	// 	pr_err("Failed to register USB power supply.\n");
+	// 	goto err_usb_psy_register;
+	// }
 
-	ret = power_supply_register(&pdev->dev, &battery->psy_ac);
-	if (ret) {
-		pr_err("Failed to register AC power supply.\n");
-		goto err_ac_psy_register;
-	}
+	// ret = power_supply_register(&pdev->dev, &battery->psy_ac);
+	// if (ret) {
+	// 	pr_err("Failed to register AC power supply.\n");
+	// 	goto err_ac_psy_register;
+	// }
 
 	/* create sec detail attributes */
-	p3_bat_create_attrs(battery->psy_battery.dev);
+	p3_bat_create_attrs(&battery->psy_battery->dev);
 
 #ifdef __TEST_DEVICE_DRIVER__
-	sec_batt_test_create_attrs(battery->psy_ac.dev);
+	sec_batt_test_create_attrs(&battery->psy_ac->dev);
 #endif /* __TEST_DEVICE_DRIVER__ */
 
 	battery->p3_battery_initial = 1;
@@ -1862,7 +1890,7 @@ static int p3_bat_probe(struct platform_device *pdev)
 	fg_alert_init();
 	mutex_unlock(&battery->work_lock);
 
-	p3_bat_status_update(&battery->psy_battery);
+	p3_bat_status_update(battery->psy_battery);
 
 	p3_cable_check_status(battery);
 
@@ -1892,11 +1920,11 @@ static int p3_bat_probe(struct platform_device *pdev)
 
 err_charger_irq:
 	hrtimer_cancel(&battery->hrtimer);
-	power_supply_unregister(&battery->psy_ac);
+	power_supply_unregister(battery->psy_ac);
 err_ac_psy_register:
-	power_supply_unregister(&battery->psy_usb);
+	power_supply_unregister(battery->psy_usb);
 err_usb_psy_register:
-	power_supply_unregister(&battery->psy_battery);
+	power_supply_unregister(battery->psy_battery);
 err_battery_psy_register:
 	destroy_workqueue(battery->p3_TA_workqueue);
 #ifdef CONFIG_TARGET_LOCALE_KOR
@@ -1924,9 +1952,9 @@ static int p3_bat_remove(struct platform_device *pdev)
 	free_irq(gpio_to_irq(battery->pdata->charger.connect_line), NULL);
 
 	hrtimer_cancel(&battery->hrtimer);
-	power_supply_unregister(&battery->psy_ac);
-	power_supply_unregister(&battery->psy_usb);
-	power_supply_unregister(&battery->psy_battery);
+	power_supply_unregister(battery->psy_ac);
+	power_supply_unregister(battery->psy_usb);
+	power_supply_unregister(battery->psy_battery);
 
 	destroy_workqueue(battery->p3_TA_workqueue);
 #ifdef CONFIG_TARGET_LOCALE_KOR
