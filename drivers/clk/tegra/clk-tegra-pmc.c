@@ -78,6 +78,8 @@ static struct pmc_clk_init_data pmc_clks[] = {
 	PMC_CLK(3, 22, 18),
 };
 
+static struct clk *pclk;
+
 void __init tegra_pmc_clk_init(void __iomem *pmc_base,
 				struct tegra_clk *tegra_clks)
 {
@@ -112,6 +114,9 @@ void __init tegra_pmc_clk_init(void __iomem *pmc_base,
 		clk_register_clkdev(clk, data->dev_name, data->gate_name);
 	}
 
+	dt_clk = tegra_lookup_dt_id(tegra_clk_pclk, tegra_clks);
+	pclk = *dt_clk;
+
 	/* blink */
 	writel_relaxed(0, pmc_base + PMC_BLINK_TIMER);
 	clk = clk_register_gate(NULL, "blink_override", "clk_32k", 0,
@@ -129,3 +134,7 @@ void __init tegra_pmc_clk_init(void __iomem *pmc_base,
 	*dt_clk = clk;
 }
 
+unsigned long tegra_pmc_get_pclk_rate(void)
+{
+	return __clk_get_rate(pclk);
+}

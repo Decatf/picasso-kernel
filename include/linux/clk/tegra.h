@@ -121,4 +121,6 @@ static inline void tegra_cpu_clock_resume(void)
 }
 #endif
 
+unsigned long tegra_pmc_get_pclk_rate(void);
+
 #endif /* __LINUX_CLK_TEGRA_H_ */
