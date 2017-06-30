@@ -845,7 +845,7 @@ static void __init tegra20_periph_clk_init(void)
 					TEGRA_PERIPH_EMC);
 	clks[TEGRA20_CLK_EMC] = clk;
 
-	clk = tegra_clk_register_mc("mc", "emc_mux", clk_base + CLK_SOURCE_EMC,
+	clk = tegra_clk_register_mc("mc", "pll_m", clk_base + CLK_SOURCE_EMC,
 				    &emc_lock);
 	clks[TEGRA20_CLK_MC] = clk;
 
