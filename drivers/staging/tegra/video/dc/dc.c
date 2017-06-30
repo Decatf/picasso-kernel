@@ -2050,6 +2050,9 @@ static struct tegra_dc_platform_data *tegra_dc_parse_dt(struct nvhost_device *nd
 	return pdata;
 }
 
+int tegradc_probed = 0;
+EXPORT_SYMBOL(tegradc_probed);
+
 static int tegra_dc_probe(struct nvhost_device *ndev,
 	struct nvhost_device_id *id_table)
 {
@@ -2268,6 +2271,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev,
 
 	tegra_dc_create_sysfs(&dc->ndev->dev);
 
+	tegradc_probed = 1;
 	return 0;
 }
 
