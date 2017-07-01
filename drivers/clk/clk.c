@@ -396,6 +396,15 @@ out:
 	return ret;
 }
 
+unsigned long __clk_get_rate(struct clk *clk)
+{
+	if (!clk)
+		return 0;
+
+	return clk_core_get_rate_nolock(clk->core);
+}
+EXPORT_SYMBOL_GPL(__clk_get_rate);
+
 unsigned long clk_hw_get_rate(const struct clk_hw *hw)
 {
 	return clk_core_get_rate_nolock(hw->core);
