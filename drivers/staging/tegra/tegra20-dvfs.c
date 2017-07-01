@@ -552,7 +552,7 @@ static int tegra_dvfs_probe(struct platform_device *pdev)
 {
 	int soc_speedo_id = tegra_sku_info.soc_speedo_id;
 	int cpu_process_id = tegra_sku_info.cpu_process_id;
-	int core_process_id = tegra_sku_info.core_process_id;
+	int core_process_id = tegra_sku_info.soc_process_id;
 
 	if (!tegradc_probed) {
 		pr_info("%s: defer probe\n", __func__);

@@ -583,7 +583,7 @@ int trpc_send_msg(struct trpc_node *src, struct trpc_endpoint *from,
 		might_sleep();
 		return peer->ops->send(peer, buf, len);
 	} else {
-		might_sleep_if(gfp_flags & __GFP_WAIT);
+		might_sleep_if(gfp_flags & __GFP_RECLAIM);
 		return queue_msg(src, from, buf, len, gfp_flags);
 	}
 }

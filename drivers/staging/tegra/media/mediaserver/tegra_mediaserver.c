@@ -537,17 +537,12 @@ done:
 void __exit tegra_mediaserver_cleanup(void)
 {
 	struct tegra_mediasrv_info *mediasrv = mediasrv_info;
-	int e;
 
-	e = misc_deregister(&mediaserver_misc_device);
-	CHECK_STATUS(e, fail);
+	misc_deregister(&mediaserver_misc_device);
 
 	nvmap_client_put(mediasrv->nvmap);
 	kfree(mediasrv);
 	mediasrv_info = NULL;
-
-fail:
-	return;
 }
 
 module_init(tegra_mediaserver_init);
