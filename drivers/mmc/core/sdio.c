@@ -125,7 +125,8 @@ static int sdio_read_cccr(struct mmc_card *card, u32 ocr)
 		return -EINVAL;
 	}
 
-	card->cccr.sdio_vsn = (data & 0xf0) >> 4;
+	// card->cccr.sdio_vsn = (data & 0xf0) >> 4;
+	card->cccr.sdio_vsn = SDIO_SDIO_REV_1_20;
 
 	ret = mmc_io_rw_direct(card, 0, 0, SDIO_CCCR_CAPS, 0, &data);
 	if (ret)
@@ -202,6 +203,15 @@ static int sdio_read_cccr(struct mmc_card *card, u32 ocr)
 	}
 
 out:
+
+	pr_info("%s: cccr_vsn=%d\n", __func__, cccr_vsn);
+	pr_info("%s: sdio_vsn=%d\n", __func__, card->cccr.sdio_vsn);
+	pr_info("%s: multi_block=%d\n", __func__, card->cccr.multi_block);
+	pr_info("%s: low_speed=%d\n", __func__, card->cccr.low_speed);
+	pr_info("%s: wide_bus=%d\n", __func__, card->cccr.wide_bus);
+	pr_info("%s: high_power=%d\n", __func__, card->cccr.high_power);
+	pr_info("%s: high_speed=%d\n", __func__, card->cccr.high_speed);
+
 	return ret;
 }
 
