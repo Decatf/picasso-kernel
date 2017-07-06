@@ -1,0 +1,1212 @@
+
+/dts-v1/;
+
+#include <dt-bindings/input/input.h>
+#include "tegra20.dtsi"
+
+/ {
+	model = "Samsung Galaxy Tab 10.1 WIFI";
+	compatible = "nvidia,samsung_p3", "nvidia,tegra20";
+
+	aliases {
+		rtc0 = "/i2c@7000d000/tps6586x@74";
+		rtc1 = "/rtc@7000e000";
+		serial0 = &uarta;
+		serial2 = &uartc;
+	};
+
+	memory {
+		reg = <0x00000000 0x1FF00000>;
+		reg = <0x20000000 0x20000000>;
+	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock@0 {
+			compatible = "fixed-clock";
+			reg=<0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+
+	cmc623_pwm {
+		compatible = "samsung,cmc623-pwm";
+
+		default-brightness = <150>;
+
+		max-brightness = <255>;
+		mid-brightness = <150>;
+		low-brightness = <50>;
+		dim-brightness = <15>;
+
+		max-backlight = <1600>;
+		mid-backlight = <784>;
+		low-backlight = <90>;
+		dim-backlight = <50>;
+		dark-backlight = <0>;
+	};
+
+	nvmap {
+		compatible = "nvidia,tegra-nvmap";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		carveouts {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			iram {
+				reg = <0x40000400 0x3FC00>;
+				reg-names = "iram";
+				buddy-size = <0>;
+				usage-mask = <0x20000000>;
+			};
+
+			generic {
+				reg = <0x30000000 0x10000000>;
+				reg-names = "generic-0";
+				buddy-size = <0x8000>;
+				usage-mask = <0x1>;
+			};
+		};
+	};
+
+	host1x@50000000 {
+		compatible = "nvidia,tegra20-host1x", "nvhost-bus";
+		ranges;
+
+		mpe@54040000 {
+			clock-names = "mpe";
+		};
+
+		gr3d@54180000 {
+			clock-names = "gr3d";
+		};
+
+		gr2d@54140000 {
+			clocks = <&tegra_car TEGRA20_CLK_GR2D>,
+				 <&tegra_car TEGRA20_CLK_EPP>;
+			clock-names = "gr2d", "epp";
+		};
+
+		epp@540c0000 {
+			clock-names = "epp";
+		};
+
+		dc@54200000 {
+			reg = <0x54200000 0x00040000>,
+			      <0x2E700000 0x00900000>;
+			reg-names = "regs", "fbmem";
+			interrupt-names = "irq";
+
+			rgb {
+				status = "okay";
+
+				display {
+					fb-win = <0>;
+					fb-xres = <1280>;
+					fb-yres = <800>;
+					fb-bpp = <32>;
+
+					dc-index = <0>;
+
+					flags = <1>; /* TEGRA_DC_FLAG_ENABLED */
+
+					type = <0>; /* TEGRA_DC_OUT_RGB */
+					order = <0>; /* TEGRA_DC_ORDER_RED_BLUE */
+					align = <0>; /* TEGRA_DC_ALIGN_MSB */
+					depth = <24>;
+					dither = <3>; /* TEGRA_DC_ERRDIFF_DITHER */
+
+					default-emc-rate = <300000000>;
+					min-emc-rate = <300000000>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: cmc623-lsi {
+							clock-frequency = <68941176>;
+							hactive = <1280>;
+							vactive = <800>;
+							hfront-porch = <16>;
+							hback-porch = <64>;
+							hsync-len = <48>;
+							vsync-len = <3>;
+							vfront-porch = <2>;
+							vback-porch = <11>;
+						};
+						timing1: cmc623-fujitsu {
+							clock-frequency = <76000000>;
+							hactive = <1280>;
+							vactive = <800>;
+							hfront-porch = <16>;
+							hback-porch = <64>;
+							hsync-len = <48>;
+							vsync-len = <18>;
+							vfront-porch = <6>;
+							vback-porch = <76>;
+						};
+					};
+				};
+			};
+		};
+	};
+
+	tegra-avp {
+		compatible = "nvidia,tegra20-avp";
+		interrupts = <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "mbox_from_avp_pending";
+		clocks = <&tegra_car TEGRA20_CLK_COP>,
+			 <&tegra_car TEGRA20_CLK_VCP>,
+			 <&tegra_car TEGRA20_CLK_BSEA>,
+			 <&tegra_car TEGRA20_CLK_VDE>;
+		clock-names = "cop", "vcp", "bsea", "vde";
+		resets = <&tegra_car TEGRA20_CLK_COP>,
+			 <&tegra_car TEGRA20_CLK_VCP>,
+			 <&tegra_car TEGRA20_CLK_BSEA>,
+			 <&tegra_car TEGRA20_CLK_VDE>;
+		reset-names = "cop", "vcp", "bsea", "vde";
+	};
+
+	pinmux@70000014 {
+		pinctrl-names = "default";
+		pinctrl-0 = <&state_default>;
+
+		state_default: pinmux {
+			ata {
+				nvidia,pins = "ata", "atc", "atd", "ate", "gmb",
+					"gmd", "irrx", "irtx", "spid", "spie";
+				nvidia,function = "gmi";
+			};
+			atb {
+				nvidia,pins = "atb", "gma", "gme";
+				nvidia,function = "sdio4";
+			};
+			cdev1 {
+				nvidia,pins = "cdev1";
+				nvidia,function = "plla_out";
+			};
+			cdev2 {
+				nvidia,pins = "cdev2";
+				nvidia,function = "pllp_out4";
+			};
+			crtp {
+				nvidia,pins = "crtp";
+				nvidia,function = "crt";
+			};
+			csus {
+				nvidia,pins = "csus";
+				nvidia,function = "vi_sensor_clk";
+			};
+			dap1 {
+				nvidia,pins = "dap1";
+				nvidia,function = "dap1";
+			};
+			dap2 {
+				nvidia,pins = "dap2";
+				nvidia,function = "dap2";
+			};
+			dap3 {
+				nvidia,pins = "dap3";
+				nvidia,function = "dap3";
+			};
+			dap4 {
+				nvidia,pins = "dap4";
+				nvidia,function = "dap4";
+			};
+			ddc {
+				nvidia,pins ="spif", "uac";
+				nvidia,function = "rsvd4";
+			};
+			spif {
+				nvidia,pins = "spif", "uac";
+				nvidia,function = "rsvd4";
+			};
+			dta {
+				nvidia,pins = "dta", "dtb", "dtc", "dtd", "dte";
+				nvidia,function = "vi";
+			};
+			dtf {
+				nvidia,pins = "dtf";
+				nvidia,function = "i2c3";
+			};
+			gmc {
+				nvidia,pins = "gmc";
+				nvidia,function = "uartd";
+			};
+			gpu {
+				nvidia,pins = "gpu";
+				nvidia,function = "uarta";
+			};
+			gpu7 {
+				nvidia,pins = "gpu7";
+				nvidia,function = "rtck";
+			};
+			gpv {
+				nvidia,pins = "gpv", "slxa", "slxk";
+				nvidia,function = "pcie";
+			};
+			hdint {
+				nvidia,pins = "hdint";
+				nvidia,function = "hdmi";
+			};
+			i2cp {
+				nvidia,pins = "i2cp";
+				nvidia,function = "i2cp";
+			};
+			kbca {
+				nvidia,pins = "kbca", "kbcb", "kbcc", "kbcd",
+					"kbce", "kbcf";
+				nvidia,function = "kbc";
+			};
+			lcsn {
+				nvidia,pins = "lcsn",
+					"ld0", "ld1", "ld2", "ld3", "ld4",
+					"ld5", "ld6", "ld7", "ld8", "ld9",
+					"ld10", "ld11", "ld12", "ld13", "ld14",
+					"ld15", "ld16", "ld17", "ldc", "ldi",
+					"lhp0", "lhp1", "lhp2", "lhs",
+					"lm1", "lpp", "lpw1",
+					"lsc0", "lsck", "lsda", "lsdi",
+					"lspi", "lvp0", "lvp1", "lvs";
+				nvidia,function = "displaya";
+			};
+			lm0 {
+				nvidia,pins = "lm0", "lpw0", "lpw2", "lsc1";
+				nvidia,function = "spi3";
+			};
+			owc {
+				nvidia,pins = "owc";
+				nvidia,function = "owr";
+			};
+			pmc {
+				nvidia,pins = "pmc";
+				nvidia,function = "pwr_on";
+			};
+			rm {
+				nvidia,pins = "rm";
+				nvidia,function = "i2c1";
+			};
+			sdb {
+				nvidia,pins = "sdb", "sdc", "sdd";
+				nvidia,function = "sdio3";
+			};
+			sdio1 {
+				nvidia,pins = "sdio1";
+				nvidia,function = "sdio1";
+			};
+			slxc {
+				nvidia,pins = "slxc", "slxd";
+				nvidia,function = "spi4";
+			};
+			spdi {
+				nvidia,pins = "spdi", "spdo";
+				nvidia,function = "rsvd2";
+			};
+			spia {
+				nvidia,pins = "spia", "spib", "spic";
+				nvidia,function = "spi1";
+			};
+			spig {
+				nvidia,pins = "spig", "spih";
+				nvidia,function = "spi2_alt";
+			};
+			uaa {
+				nvidia,pins = "uaa", "uab", "uda";
+				nvidia,function = "ulpi";
+			};
+			uad {
+				nvidia,pins = "uad";
+				nvidia,function = "irda";
+			};
+			uca {
+				nvidia,pins = "uca", "ucb";
+				nvidia,function = "uartc";
+			};
+
+			ck32 {
+				nvidia,pins = "ck32", "ddrc", "pmca", "pmcb", "pmcc", "pmcd", "pmce", "xm2c","xm2d";
+			};
+
+			conf_ata {
+				nvidia,pins = "ata", "atb", "ddc", "gma", "gmd", "gme", "gpu",
+					"irtx", "kbca", "kbcc", "kbce", "pmce", "spie", "spig",
+					"spih", "uad", "uca", "ucb";
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			conf_owc {
+				nvidia,pins = "owc";
+				nvidia,pull = <TEGRA_PIN_PULL_UP>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			conf_atc {
+				nvidia,pins = "atc", "atd", "ate", "cdev1", "cdev2", "dap1",
+				"dap2", "dap4", "dte", "gmc", "gpu7", "gpv", "i2cp",
+				"pta", "rm", "sdio1", "slxc", "slxd", "slxk", "spdi", "spdo",
+				"uaa", "uab", "uac", "uda";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			conf_ck32 {
+				nvidia,pins = "ck32", "ddrc", "pmca", "pmcb",
+					"pmcc", "pmcd", "xm2c", "xm2d";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			conf_crtp {
+				nvidia,pins = "crtp", "slxa";
+				nvidia,pull = <TEGRA_PIN_PULL_NONE>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			conf_csus {
+				nvidia,pins = "csus";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			conf_dap3 {
+				nvidia,pins = "dap3", "dta", "dtb", "dtc", "dtd", "dtf",
+				"gmb", "irrx", "kbcb", "kbcd", "kbcf",
+				"sdc", "sdd", "spia", "spib", "spic", "spid", "spif";
+				nvidia,pull = <TEGRA_PIN_PULL_DOWN>;
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+
+			/* Pull up/down configs from v3.1.10 kernel that don't work on upstream kernel. */
+			conf_lcsn {
+				nvidia,pins =
+					/* pull up */
+					"lcsn", "ldc", "lpw0", "lpw1",
+					"lpw2", "lsc1", "lsck", "lsda", "lsdi",
+
+					/* pull down */
+					"ld0", "ld1", "ld2", "ld3", "ld4", "ld5", "ld6", "ld7", "ld8",
+					"ld9", "ld10", "ld11", "ld12", "ld13", "ld14", "ld15",
+					"ld16", "ld17", "ldi", "lhp0", "lhp1", "lhp2", "lpp", "lvp1",
+
+					/* pull none */
+					"lhs", "lm0", "lm1", "lsc0", "lspi", "lvs", "pmc", "sdb",
+					"hdint",
+					"lvp0";
+
+				nvidia,tristate = <TEGRA_PIN_DISABLE>;
+			};
+			conf_lvp0 {
+				nvidia,pins = "lvp0";
+				nvidia,tristate = <TEGRA_PIN_ENABLE>;
+			};
+
+			drive_sdio1 {
+				nvidia,pins = "drive_sdio1";
+				nvidia,high-speed-mode = <TEGRA_PIN_DISABLE>;
+				nvidia,schmitt = <TEGRA_PIN_ENABLE>;
+				nvidia,low-power-mode = <TEGRA_PIN_LP_DRIVE_DIV_1>;
+				nvidia,pull-down-strength = <31>;
+				nvidia,pull-up-strength = <31>;
+				nvidia,slew-rate-rising = <TEGRA_PIN_SLEW_RATE_SLOWEST>;
+				nvidia,slew-rate-falling = <TEGRA_PIN_SLEW_RATE_SLOWEST>;
+			};
+		};
+
+		state_i2cmux_ddc: pinmux_i2cmux_ddc {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "i2c2";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "rsvd4";
+			};
+		};
+
+		state_i2cmux_pta: pinmux_i2cmux_pta {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "rsvd4";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "i2c2";
+			};
+		};
+		state_i2cmux_idle: pinmux_i2cmux_idle {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "rsvd4";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "rsvd4";
+			};
+		};
+	};
+
+	i2c@7000c000 {
+		status = "okay";
+		clock-frequency = <400000>;
+
+		mpu3050@68 {
+			compatible = "invensense,mpu3050_v333";
+			reg = <0x68>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(V, 6) IRQ_TYPE_LEVEL_HIGH>;
+
+			int-config = <0x10>;
+			level-shifter = <1>;
+			orientation = /bits/ 8 <0	0xff	0
+						0xff	0	0
+						0	0	0xff>;
+
+			accelerometer {
+				bus-secondary;
+				address = <0xF>;
+				orientation = /bits/ 8 <0xff	0	0
+							0	1	0
+							0	0	0xff>;
+			};
+
+			compass {
+				bus-primary;
+				address = <0xC>;
+				orientation = /bits/ 8 <0	1	0
+							1	0	0
+							0	0	0xff>;
+			};
+		};
+	};
+
+	i2c@7000c400 {
+		status = "okay";
+		clock-frequency = <100000>;
+	};
+
+	i2cmux {
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		mux-gpios = <&gpio 27 0 &gpio 28 0 &gpio 74 0>;
+
+		i2c-parent = <&{/i2c@7000c400}>;
+
+		pinctrl-names = "ddc", "pta", "idle";
+		pinctrl-0 = <&state_i2cmux_ddc>;
+		pinctrl-1 = <&state_i2cmux_pta>;
+		pinctrl-2 = <&state_i2cmux_idle>;
+
+		i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			@4C {
+				compatible = "samsung,sec_touch";
+				reg = <0x4C>;
+				interrupt-parent = <&gpio>;
+				interrupts = <TEGRA_GPIO(D, 4) IRQ_TYPE_LEVEL_HIGH>;
+
+				touch-en = <TEGRA_GPIO(J, 2) IRQ_TYPE_LEVEL_HIGH>;
+				touch-rst = <TEGRA_GPIO(D, 3) IRQ_TYPE_LEVEL_HIGH>;
+				touch-int = <TEGRA_GPIO(D, 4) IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+	};
+
+	i2c@7000c500 {
+		status = "okay";
+		clock-frequency = <400000>;
+	};
+
+	i2c@5 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio 194 0 /* sda */
+			 &gpio 192 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		@23 {
+			compatible = "samsung_p3,bh1721fvc";
+			reg = <0x23>;
+
+			gpios = <&gpio TEGRA_GPIO(A, 0) IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+	i2c@6 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio 112 0 /* sda */
+			 &gpio 119 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		@36 {
+			compatible = "maxim,max17042";
+			reg = <0x36>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(U, 6) IRQ_TYPE_LEVEL_HIGH>;
+
+			sdi-capacity = <0x340A>;
+			sdi-vfcapacity = <0x478A>;
+			atl-capacity = <0x349A>;
+			atl-vfcapacity = <0x4630>;
+			fuel-alert-line = <135>; /* GPIO_FUEL_ALRT		TEGRA_GPIO_PQ7 */
+		};
+	};
+	i2c@7 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio 178 0 /* sda */
+			 &gpio 187 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+	i2c@8 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio 51 0 /* sda */
+			 &gpio 64 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		wm8994: wm8994@1B {
+			compatible = "samsung,wm8994";
+			reg = <0x1B>;
+		};
+	};
+	i2c@9 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio 195 0 /* sda */
+			 &gpio 193 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		temperature-sensor@4c {
+			compatible = "onnn,nct1008";
+			reg = <0x4c>;
+			vcc-supply = <&vbus1_reg>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(U, 6) IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+	i2c@10 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio 203 0 /* sda */
+			 &gpio 22 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <3>;
+		i2c-gpio,timeout-ms = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		image_convertor@38 {
+			compatible = "samsung,cmc623";
+			reg = <0x38>;
+
+			mlcd-on = <&gpio TEGRA_GPIO(D, 0) GPIO_ACTIVE_HIGH>;
+			ima-sleep = <&gpio TEGRA_GPIO(W, 0) GPIO_ACTIVE_HIGH>;
+			ima-bypass = <&gpio TEGRA_GPIO(Z, 4) GPIO_ACTIVE_HIGH>;
+			ima-pwren = <&gpio TEGRA_GPIO(Q, 4) GPIO_ACTIVE_HIGH>;
+			lvds-n-shdn = <&gpio TEGRA_GPIO(C, 1) GPIO_ACTIVE_HIGH>;
+			mlcd-on1 = <&gpio TEGRA_GPIO(X, 0) GPIO_ACTIVE_HIGH>;
+			ima-n-rst = <&gpio TEGRA_GPIO(N, 4) GPIO_ACTIVE_HIGH>;
+			bl-reset = <&gpio TEGRA_GPIO(R, 3) GPIO_ACTIVE_HIGH>;
+		};
+	};
+	i2c@11 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio 50 0 /* sda */
+			 &gpio 71 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <3>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		@41 {
+			compatible = "samsung,stmpe811";
+			reg = <0x41>;
+
+			adc-interrupt-gpio =  <&gpio TEGRA_GPIO(V, 5) GPIO_ACTIVE_HIGH>;
+		};
+	};
+	i2c@12 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio 116 0 /* sda */
+			 &gpio 114 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		@0C {
+			compatible = "samsung_p3,ak8975c";
+			reg = <0x0C>;
+			interrupt-parent = <&gpio>;
+			interrupts = <TEGRA_GPIO(K, 4) IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+	i2c@13 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio 59 0 /* sda */
+			 &gpio 58 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <3>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+	i2c@14 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio 83 0 /* sda */
+			 &gpio 72 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <3>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+	};
+	i2c@15 {
+		compatible = "i2c-gpio";
+		gpios = <&gpio 67 0 /* sda */
+			 &gpio 82 0 /* scl */
+			>;
+		i2c-gpio,delay-us = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		@48 {
+			compatible = "samsung_p3,isa1200_vibrator";
+			reg = <0x48>;
+			gpios = <&gpio TEGRA_GPIO(R, 6) IRQ_TYPE_LEVEL_HIGH>;
+
+			max-timeout = <10000>;
+			ctrl0 = <17>;
+			ctrl1 = <192>;
+			ctrl2 = <0>;
+			ctrl4 = <0>;
+			pll = <0x23>;
+			duty = <0x71>;
+			period = <0x74>;
+
+			clocks = <&tegra_car TEGRA20_CLK_CDEV2>;
+			clock-names = "vibrator-clk";
+		};
+	};
+
+	dvc: i2c@7000d000 {
+		status = "okay";
+		clock-frequency = <400000>;
+
+		pmic: tps6586x@74 {
+			compatible = "ti,tps6586x";
+			reg = <0x74>;
+			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+
+			ti,system-power-controller;
+			#gpio-cells = <2>;
+			gpio-controller;
+
+			sys-supply = <&vdd_5v0_reg>;
+			vin-sm0-supply = <&sys_reg>;
+			vin-sm1-supply = <&sys_reg>;
+			vin-sm2-supply = <&sys_reg>;
+			vinldo01-supply = <&sm2_reg>;
+			vinldo23-supply = <&sm2_reg>;
+			vinldo4-supply = <&sm2_reg>;
+			vinldo678-supply = <&sm2_reg>;
+			vinldo9-supply = <&sm2_reg>;
+
+			regulators {
+				sys_reg: sys {
+					regulator-name = "vdd_sys";
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				core_vdd_reg: sm0 {
+					regulator-name = "vdd_sm0,vdd_core";
+					regulator-min-microvolt = <725000>;
+					regulator-max-microvolt = <1500000>;
+					regulator-always-on;
+				};
+
+				cpu_vdd_reg: sm1 {
+					regulator-name = "vdd_sm1,vdd_cpu";
+					regulator-min-microvolt = <725000>;
+					regulator-max-microvolt = <1500000>;
+					regulator-always-on;
+				};
+
+				sm2_reg: sm2 {
+					regulator-name = "vdd_sm2,DBVDD,AVDD2,CPVDD";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+				};
+
+				/* LDO0 is not connected to anything */
+
+				ldo1 {
+					regulator-name = "vdd_ldo1,avdd_pll*";
+					regulator-min-microvolt = <1100000>;
+					regulator-max-microvolt = <1100000>;
+					regulator-always-on;
+				};
+
+				rtc_vdd_reg: ldo2 {
+					regulator-name = "vdd_ldo2,vdd_rtc,vdd_aon";
+					regulator-min-microvolt = <725000>;
+					regulator-max-microvolt = <1500000>;
+					regulator-always-on;
+				};
+
+				ldo3 {
+					regulator-name = "vdd_ldo3,avdd_usb*,avdd_lvds";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-always-on;
+				};
+
+				ldo4 {
+					regulator-name = "vdd_ldo4,avdd_osc,vddio_sys";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+				};
+
+				wlreg: ldo5 {
+					regulator-name = "vdd_ldo5,vcore_mmc";
+					regulator-min-microvolt = <1250000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				vbus1_reg: ldo6 {
+					regulator-name = "vdd_ldo6,vddio_vi,vdd_nct1008";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-boot-on;
+				};
+
+				ldo7 {
+					regulator-name = "vdd_ldo7,avdd_hdmi,vdd_fuse";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+				};
+
+				ldo8 {
+					regulator-name = "vdd_ldo8,avdd_hdmi_pll";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+				};
+
+				ldo9 {
+					regulator-name = "vdd_ldo9,avdd_2v85,vdd_ddr_rx";
+					regulator-min-microvolt = <2850000>;
+					regulator-max-microvolt = <2850000>;
+					regulator-always-on;
+				};
+/*
+	DO NOT ENABLE THIS
+	  reboot will fail
+				ldo_rtc {
+					regulator-name = "vdd_rtc_out,vdd_cell";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+				};
+*/
+			};
+		};
+	};
+
+	pmc@7000e400 {
+		nvidia,invert-interrupt;
+		nvidia,suspend-mode = <0>;
+		nvidia,cpu-pwr-good-time = <2000>;
+		nvidia,cpu-pwr-off-time = <100>;
+		nvidia,core-pwr-good-time = <3845 3845>;
+		nvidia,core-pwr-off-time = <458>;
+		nvidia,sys-clock-req-active-high;
+		nvidia,lp0-vec = <0x1840E000 0x2000>;
+	};
+	
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		vdd_5v0_reg: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "vdd_5v0";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			regulator-always-on;
+		};
+
+		/*
+		vbus1_reg: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <4>;
+			regulator-name = "vdd_ldo3,avdd_usb*,avdd_lvds";
+			regulator-min-microvolt = <3300000>;
+			regulator-max-microvolt = <3300000>;
+			gpio = <&gpio TEGRA_GPIO(R, 7) GPIO_ACTIVE_HIGH>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+		*/
+	};
+
+	dvfs {
+		compatible = "tegra20-dvfs";
+		core-supply = <&core_vdd_reg>;
+		rtc-supply = <&rtc_vdd_reg>;
+		cpu-supply = <&cpu_vdd_reg>;
+
+		clocks = <&tegra_car TEGRA20_CLK_DISP1>,
+			 <&tegra_car TEGRA20_CLK_DISP2>,
+			 <&tegra_car TEGRA20_CLK_HDMI>,
+			 <&tegra_car TEGRA20_CLK_EPP>,
+			 <&tegra_car TEGRA20_CLK_GR2D>,
+			 <&tegra_car TEGRA20_CLK_GR3D>,
+			 <&tegra_car TEGRA20_CLK_MPE>,
+			 <&tegra_car TEGRA20_CLK_HOST1X>,
+			 <&tegra_car TEGRA20_CLK_VI>,
+			 <&tegra_car TEGRA20_CLK_CSI>,
+			 <&tegra_car TEGRA20_CLK_VDE>,
+			 <&tegra_car TEGRA20_CLK_MIPI>,
+			 <&tegra_car TEGRA20_CLK_USBD>,
+			 <&tegra_car TEGRA20_CLK_USB2>,
+			 <&tegra_car TEGRA20_CLK_USB3>,
+			 <&tegra_car TEGRA20_CLK_EMC>;
+		clock-names = "disp1", "disp2", "hdmi", "epp", "2d", "3d",
+				"mpe", "host1x", "vi", "csi", "vde", "mipi",
+				"usbd", "usb2", "usb3", "emc";
+	};
+
+	p4_battery {
+		status = "okay";
+		compatible = "samsung,p4-battery";
+
+		enable-line =  <&gpio TEGRA_GPIO(X, 4) GPIO_ACTIVE_HIGH>;
+		connect-line =  <&gpio TEGRA_GPIO(W, 2) GPIO_ACTIVE_HIGH>;
+		fullcharge-line =  <&gpio TEGRA_GPIO(K, 5) GPIO_ACTIVE_HIGH>;
+		currentset-line =  <&gpio TEGRA_GPIO(V, 4) GPIO_ACTIVE_HIGH>;
+		alert-line =  <&gpio TEGRA_GPIO(Q, 7) GPIO_ACTIVE_HIGH>;
+
+		temp-high-threshold = <50000>;
+		temp-high-recovery = <42000>;
+		temp-low-recovery = <2000>;
+		temp-low-threshold = <0>;
+		charge-duration = <36000>;
+		recharge-duration = <5400>;
+		recharge-voltage = <4150>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power key";
+			gpios = <&gpio TEGRA_GPIO(S, 4) GPIO_ACTIVE_HIGH>;
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+			debounce-interval = <10>;
+		};
+	};
+
+	keyboard: keyboard {
+		compatible = "nvidia,tegra20-kbc";
+		reg = <0x7000e200 0x100>;
+		interrupts = <0 85 0x04>;
+		clocks = <&tegra_car 36>;
+		resets = <&tegra_car 36>;
+		reset-names = "kbc";
+		nvidia,debounce-delay-ms = <10>;
+		nvidia,repeat-delay-ms = <1024>;
+		nvidia,kbc-row-pins = <0 1>;
+		nvidia,kbc-col-pins = <17>;
+		linux,keymap = <
+			MATRIX_KEY(0x00, 0x00, KEY_VOLUMEDOWN)
+			MATRIX_KEY(0x01, 0x00, KEY_VOLUMEUP) >;
+	};
+
+	sec-jack {
+		compatible = "samsung,sec_jack";
+
+		det-gpio = <&gpio TEGRA_GPIO(W, 3) GPIO_ACTIVE_HIGH>;
+		send-end-gpio = <&gpio TEGRA_GPIO(V, 3) GPIO_ACTIVE_HIGH>;
+
+		micbias-enable = <&gpio TEGRA_GPIO(X, 6) GPIO_ACTIVE_HIGH>;
+		ear-micbias-enable = <&gpio TEGRA_GPIO(S, 3) GPIO_ACTIVE_HIGH>;
+		ear-micbias-enable-alt = <&gpio TEGRA_GPIO(H, 3) GPIO_ACTIVE_HIGH>;
+
+		jack-zones {
+			jack_zone0 {
+				adc-high = <0>;
+				delay-ms = <0>;
+				check-count = <2>;
+				jack-type = <2>; /* SEC_HEADSET_3POLE */
+			};
+			jack_zone1 {
+				adc-high = <900>;
+				delay-ms = <0>;
+				check-count = <20>;
+				jack-type = <2>; /* SEC_HEADSET_3POLE */
+			};
+			jack_zone2 {
+				adc-high = <2000>;
+				delay-ms = <0>;
+				check-count = <2>;
+				jack-type = <1>; /* SEC_HEADSET_4POLE */
+			};
+			jack_zone3 {
+				adc-high = <3800>;
+				delay-ms = <0>;
+				check-count = <2>;
+				jack-type = <1>; /* SEC_HEADSET_4POLE */
+			};
+			jack_zone4 {
+				adc-high = <0x7fffffff>;
+				delay-ms = <0>;
+				check-count = <50>;
+				jack-type = <2>; /* SEC_HEADSET_3POLE */
+			};
+		};
+
+		jack-button-zones {
+			jack_button0 {
+				code = <KEY_MEDIA>;
+				adc-low = <0>;
+				adc-high = <150>;
+			};
+			jack_button1 {
+				code = <KEY_VOLUMEUP>;
+				adc-low = <151>;
+				adc-high = <330>;
+			};
+			jack_button2 {
+				code = <KEY_VOLUMEDOWN>;
+				adc-low = <331>;
+				adc-high = <1000>;
+			};
+		};
+	};
+
+	tegra_i2s1: i2s@70002800 {
+		status = "okay";
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-wm8994";
+		nvidia,model = "WM8994 NVIDIA Tegra P4WIFI";
+
+		nvidia,audio-routing =
+			"Headphone Jack", "HPOUTR",
+			"Headphone Jack", "HPOUTL",
+			"Int Spk", "LINEOUTL",
+			"Int Spk", "LINEOUTR",
+			"Mic Jack", "MICBIAS",
+			"IN2L", "Mic Jack",
+			"IN2R", "Mic Jack",
+			"Int Mic", "MICBIAS",
+			"IN1L", "Int Mic",
+			"IN1R", "Int Mic";
+
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&wm8994>;
+
+		clocks = <&tegra_car TEGRA20_CLK_PLL_A>,
+			 <&tegra_car TEGRA20_CLK_PLL_A_OUT0>,
+			 <&tegra_car TEGRA20_CLK_CDEV1>;
+		clock-names = "pll_a", "pll_a_out0", "mclk";
+	};
+/*
+	bcm4330-bluetooth {
+		compatible = "broadcom,bcm4330-bluetooth";
+		gpio-bt-en = <&gpio TEGRA_GPIO(J, 5) GPIO_ACTIVE_HIGH>;
+		gpio-bt-nrst = <&gpio TEGRA_GPIO(W, 1) GPIO_ACTIVE_HIGH>;
+		gpio-bt-wake = <&gpio TEGRA_GPIO(S, 1) GPIO_ACTIVE_HIGH>;
+		gpio-bt-hostwake = <&gpio TEGRA_GPIO(S, 2) GPIO_ACTIVE_HIGH>;
+	};
+*/
+
+	bcm4751-power {
+		compatible = "broadcom,bcm4751-power";
+		power-gpio = <&gpio TEGRA_GPIO(Z, 2) GPIO_ACTIVE_HIGH>;
+		reset-gpio = <&gpio TEGRA_GPIO(N, 5) GPIO_ACTIVE_HIGH>;
+		gps-lna-supply = <&wlreg>;
+	};
+
+	usb@c5000000 {
+		compatible = "nvidia,tegra20-udc"; 
+		status = "okay";
+	};
+
+	usb-phy@c5000000 {
+		status = "okay";
+		phy_type = "utmi";
+		nvidia,hssync-start-delay = <9>;
+		nvidia,elastic-limit = <16>;
+		nvidia,idle-wait-delay = <17>;
+		nvidia,term-range-adj = <6>;
+		
+		/* nvidia,xcvr-setup = <11>; */
+		nvidia,xcvr-setup-use-fuses;
+		
+		nvidia,xcvr-lsfslew = <2>;
+		nvidia,xcvr-lsrslew = <2>;
+
+		dr_mode = "peripheral";
+		vbus-supply = <&vbus1_reg>;
+	};
+
+	sdhci@c8000000 {
+		status = "okay";
+		bus-width = <4>;
+		power-gpios = <&gpio TEGRA_GPIO(Q, 2) GPIO_ACTIVE_HIGH>;
+		keep-power-in-suspend;
+		broken-cd;
+		no-1-8-v;
+		non-removable;
+	};
+
+	wifi {
+		status = "okay";
+		compatible = "android,bcmdhd_wlan";
+		interrupt-parent = <&gpio>;
+		interrupts = <TEGRA_GPIO(S, 0) IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "bcmdhd_wlan_irq";
+
+		gpios = <&gpio TEGRA_GPIO(S, 0) IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	sdhci@c8000600 {
+		status = "okay";
+		bus-width = <8>;
+		non-removable;
+	};
+
+	uarta: serial@70006000 {
+		compatible = "nvidia,tegra20-hsuart";
+		status = "okay";
+	};
+
+	uartc: serial@70006200 {
+		compatible = "nvidia,tegra20-hsuart";
+		status = "okay";
+	};
+
+	memory-controller@7000f400 {
+		#address-cells = < 1 >;
+		#size-cells = < 0 >;
+		compatible = "nvidia,tegra20-emc";
+
+		emc-table@25000 {
+			reg = <25000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = < 25000 >;
+			nvidia,emc-registers = < 0x00000002 0x00000006
+				0x00000003 0x00000003 0x00000006 0x00000004
+				0x00000002 0x00000008 0x00000003 0x00000003
+				0x00000002 0x00000002 0x00000003 0x00000005
+				0x00000004 0x00000008 0x0000000c 0x0000004d
+				0x00000000 0x00000003 0x00000003 0x00000003
+				0x00000008 0x00000001 0x0000000b 0x00000004
+				0x00000003 0x00000008 0x00000004 0x00000008
+				0x00000002 0x00000068 0x00000004 0x00000003
+				0x00000000 0x00000000 0x00000282 0xa09404ae
+				0x0007c000 0x00000000 0x00000000 0x00000003
+				0x00000000 0x00000000 0x00000000 0x00000000 >;
+		};
+		emc-table@50000 {
+			reg = <50000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = < 50000 >;
+			nvidia,emc-registers = < 0x00000003 0x00000007
+				0x00000003 0x00000003 0x00000006 0x00000004
+				0x00000002 0x00000008 0x00000003 0x00000003
+				0x00000002 0x00000002 0x00000003 0x00000006
+				0x00000004 0x00000008 0x0000000c 0x0000009f
+				0x00000000 0x00000003 0x00000003 0x00000003
+				0x00000008 0x00000001 0x0000000b 0x00000007
+				0x00000003 0x00000008 0x00000004 0x00000008
+				0x00000002 0x000000d0 0x00000005 0x00000000
+				0x00000000 0x00000000 0x00000282 0xa09404ae
+				0x0007c000 0x00000000 0x00000000 0x00000005
+				0x00000000 0x00000000 0x00000000 0x00000000 >;
+		};
+		emc-table@75000 {
+			reg = <75000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = < 75000 >;
+			nvidia,emc-registers = < 0x00000005 0x0000000a
+				0x00000004 0x00000003 0x00000006 0x00000004
+				0x00000002 0x00000008 0x00000003 0x00000003
+				0x00000002 0x00000002 0x00000003 0x00000006
+				0x00000004 0x00000008 0x0000000c 0x000000ff
+				0x00000000 0x00000003 0x00000003 0x00000003
+				0x00000008 0x00000001 0x0000000b 0x0000000b
+				0x00000003 0x00000008 0x00000004 0x00000008
+				0x00000002 0x00000138 0x00000005 0x00000000
+				0x00000000 0x00000000 0x00000282 0xa09404ae
+				0x0007c000 0x00000000 0x00000000 0x00000007
+				0x00000000 0x00000000 0x00000000 0x00000000 >;
+		};
+		emc-table@150000 {
+			reg = <150000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = < 150000 >;
+			nvidia,emc-registers = < 0x00000009 0x00000014
+				0x00000007 0x00000003 0x00000006 0x00000004
+				0x00000002 0x00000008 0x00000003 0x00000003
+				0x00000002 0x00000002 0x00000003 0x00000006
+				0x00000004 0x00000008 0x0000000c 0x0000021f
+				0x00000000 0x00000003 0x00000003 0x00000003
+				0x00000008 0x00000001 0x0000000b 0x00000015
+				0x00000003 0x00000008 0x00000004 0x00000008
+				0x00000002 0x00000270 0x00000005 0x00000001
+				0x00000000 0x00000000 0x00000282 0xa06804ae
+				0x007dc010 0x00000000 0x00000000 0x0000000e
+				0x00000000 0x00000000 0x00000000 0x00000000 >;
+		};
+		emc-table@300000 {
+			reg = <300000>;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = < 300000 >;
+			nvidia,emc-registers = < 0x00000009 0x00000017
+				0x00000007 0x00000004 0x00000007 0x00000004
+				0x00000002 0x00000008 0x00000004 0x00000004
+				0x00000003 0x00000003 0x00000003 0x00000007
+				0x00000004 0x00000009 0x0000000d 0x0000045f
+				0x00000000 0x00000004 0x00000004 0x00000006
+				0x00000008 0x00000001 0x0000000f 0x0000002a
+				0x00000003 0x0000000f 0x00000004 0x00000007
+				0x00000002 0x000004e0 0x00000006 0x00000002
+				0x00000000 0x00000000 0x00000282 0xe04e048b
+				0x007e0010 0x00000000 0x00000000 0x0000001b
+				0x00000000 0x00000000 0x00000000 0x00000000 >;
+		};
+	};
+};

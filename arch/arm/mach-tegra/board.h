@@ -30,4 +30,7 @@ void __init tegra_init_irq(void);
 
 void __init tegra_paz00_wifikill_init(void);
 
+void __init p4wifi_machine_init(void);
+void __init p3_reserve(void);
+
 #endif
