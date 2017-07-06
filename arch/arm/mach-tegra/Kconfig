@@ -67,4 +67,14 @@ config TEGRA_AHB
 	  which controls AHB bus master arbitration and some
 	  performance parameters(priority, prefech size).
 
+config MACH_SAMSUNG_VARIATION_TEGRA
+       bool "Samsung variations based on Tegra 2"
+       help
+         Support for Samsung board based on NVIDIA Tegra 2 BSP
+
+config MACH_SAMSUNG_P4WIFI
+       bool "Samsung P4-WiFi only board"
+       depends on MACH_SAMSUNG_VARIATION_TEGRA
+       select MACH_HAS_SND_SOC_TEGRA_WM8994 if SND_SOC
+
 endif

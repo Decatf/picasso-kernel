@@ -37,3 +37,5 @@ endif
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= board-paz00.o
 
 obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= board-picasso.o
+
+obj-$(CONFIG_ARCH_TEGRA_2x_SOC)		+= board-p4wifi.o
