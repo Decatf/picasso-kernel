@@ -163,3 +163,7 @@ obj-$(CONFIG_MCB)		+= mcb/
 obj-$(CONFIG_RAS)		+= ras/
 obj-$(CONFIG_THUNDERBOLT)	+= thunderbolt/
 obj-$(CONFIG_CORESIGHT)		+= hwtracing/coresight/
+
+obj-$(CONFIG_ACCESSORY)		+= accessory/
+obj-$(CONFIG_SENSORS)		+= sensors/
+obj-y += motor/
