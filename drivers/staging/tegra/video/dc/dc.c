@@ -62,6 +62,12 @@
 #include "overlay.h"
 #include "nvsd.h"
 
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+#include "../cmc623.h"
+
+extern int cmc623_current_type;
+#endif
+
 #define TEGRA_CRC_LATCHED_DELAY		34
 
 #define DC_COM_PIN_OUTPUT_POLARITY1_INIT_VAL	0x01000000
@@ -95,7 +101,14 @@ void tegra_dc_clk_enable(struct tegra_dc *dc)
 {
 	if (!tegra_is_clk_enabled(dc->clk)) {
 		clk_prepare_enable(dc->clk);
-		tegra_dvfs_set_rate(dc->clk, dc->mode.pclk);
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+		if (cmc623_current_type == 0)
+			tegra_dvfs_set_rate(dc->clk, 137500000);
+		else
+			tegra_dvfs_set_rate(dc->clk, 152000000);
+#else
+-		tegra_dvfs_set_rate(dc->clk, dc->mode.pclk);
+#endif
 	}
 }
 
@@ -756,7 +769,11 @@ static void tegra_dc_set_out(struct tegra_dc *dc, struct tegra_dc_out *out)
 	if (mode)
 		tegra_dc_set_mode(dc, mode);
 	else if (out->n_modes > 0)
+#ifndef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 		tegra_dc_set_mode(dc, &dc->out->modes[0]);
+#else
+		tegra_dc_set_mode(dc, &dc->out->modes[cmc623_current_type]);
+#endif
 
 	switch (out->type) {
 	case TEGRA_DC_OUT_RGB:
@@ -1435,7 +1452,11 @@ void tegra_dc_panel_disable_common(struct tegra_dc *dc)
 	dc->out->panel_enabled = false;
 }
 
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+static bool _tegra_dc_controller_enable(struct tegra_dc *dc, bool no_reset)
+#else
 static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
+#endif
 {
 	int failed_init = 0;
 
@@ -1447,8 +1468,15 @@ static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
 	tegra_dc_setup_clk(dc, dc->clk);
 	tegra_dc_clk_enable(dc);
 
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+	if (!no_reset) {
+		reset_control_assert(dc->ndev->rst);
+		usleep_range(1000, 2000);
+	}
+#else
 	reset_control_assert(dc->ndev->rst);
 	usleep_range(1000, 2000);
+#endif
 	reset_control_deassert(dc->ndev->rst);
 
 	/* do not accept interrupts during initialization */
@@ -1488,6 +1516,30 @@ static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
 }
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
+
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+/* In samsung device, the bootloader initialize LCD and draw device logo.
+ * If dc is reset, the device logo might be disappeared on screen.
+ * In addition, CMC623 chip is not tolerant of some change on input RGB interface signals.
+ */
+static bool _tegra_dc_enable_noreset(struct tegra_dc *dc)
+{
+	if (dc->mode.pclk == 0)
+		return false;
+
+	if (!dc->out)
+		return false;
+
+	tegra_dc_io_start(dc);
+
+	if (!_tegra_dc_controller_enable(dc, true)) {
+		tegra_dc_io_end(dc);
+		return false;
+	}
+	return true;
+}
+#endif
+
 static bool _tegra_dc_controller_reset_enable(struct tegra_dc *dc)
 {
 	bool ret = true;
@@ -1581,7 +1633,7 @@ static bool _tegra_dc_enable(struct tegra_dc *dc)
 
 	tegra_dc_io_start(dc);
 
-	if (!_tegra_dc_controller_enable(dc)) {
+	if (!_tegra_dc_controller_enable(dc, false)) {
 		tegra_dc_io_end(dc);
 		return false;
 	}
@@ -1740,12 +1792,19 @@ static void tegra_dc_delayed_disable_work(struct work_struct *work)
 }
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
+extern int lcdonoff;
 static void tegra_dc_reset_worker(struct work_struct *work)
 {
 	struct tegra_dc *dc =
 		container_of(work, struct tegra_dc, reset_work);
 
 	unsigned long val = 0;
+
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unsigned int suspend_flag = 0;
+#endif
+#endif
 
 	mutex_lock(&shared_lock);
 
@@ -1756,6 +1815,14 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 	tegra_overlay_disable(dc->overlay);
 
 	mutex_lock(&dc->lock);
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	if (lcdonoff == 1) {
+		cmc623_suspend(NULL);
+		suspend_flag = 1;
+	}
+#endif
+#endif
 
 	if (dc->enabled == false)
 		goto unlock;
@@ -1788,6 +1855,14 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 	val &= ~(0x00000100);
 	val |= 0x100;
 	tegra_dc_writel(dc, val, DC_CMD_CONT_SYNCPT_VSYNC);
+
+ 
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA	
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	if (suspend_flag == 1)
+	cmc623_resume();
+#endif
+#endif
 
 unlock:
 	mutex_unlock(&dc->lock);
@@ -2127,10 +2202,19 @@ static int tegra_dc_probe(struct nvhost_device *ndev,
 	disable_dc_irq(dc->irq);
 
 	mutex_lock(&dc->lock);
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA	
+	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
+		cmc623_suspend();
+		_tegra_dc_set_default_videomode(dc);
+		dc->enabled = _tegra_dc_enable_noreset(dc);
+		cmc623_resume();
+}
+#else	
 	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
 		_tegra_dc_set_default_videomode(dc);
 		dc->enabled = _tegra_dc_enable(dc);
 	}
+#endif
 	mutex_unlock(&dc->lock);
 
 	tegra_enable_backlight(dc);

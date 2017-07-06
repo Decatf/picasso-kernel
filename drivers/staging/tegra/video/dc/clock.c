@@ -64,6 +64,7 @@ void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk)
 
 	BUG_ON(IS_ERR(parent_clk));
 
+#ifndef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
 	if (dc->out->type == TEGRA_DC_OUT_RGB) {
 // 		if (dc->out->parent_clk_backup &&
 // 		    (parent_clk == clk_get_sys(NULL, "pll_p"))) {
@@ -88,7 +89,7 @@ void tegra_dc_setup_clk(struct tegra_dc *dc, struct clk *clk)
 // 				clk_set_rate(base_clk, rate);
 // 		}
 	}
-
+#endif
 	if (dc->out->type == TEGRA_DC_OUT_HDMI) {
 		struct clk *base_clk = clk_get_parent(parent_clk);
 
