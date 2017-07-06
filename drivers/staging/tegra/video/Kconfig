@@ -197,5 +197,12 @@ config TEGRA_HDMI_74MHZ_LIMIT
 	  Say Y here to make kernel report only low bandwidth modes.
 	  Useful only for boards which can't deliver 148.50 MHz.
 
+config FB_TEGRA_CMC623
+	bool "Samsung CMC623"
+	depends on FB_TEGRA 
+	default y
+	help
+	  This enables support for Samsung CMC623 image converter
+
 endif
 
