@@ -184,4 +184,10 @@ source "drivers/thunderbolt/Kconfig"
 
 source "drivers/android/Kconfig"
 
+source "drivers/accessory/Kconfig"
+
+source "drivers/sensors/Kconfig"
+
+source "drivers/motor/Kconfig"
+
 endmenu
