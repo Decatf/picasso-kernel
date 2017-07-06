@@ -44,9 +44,9 @@
 #define _170uV			170000
 
 /* CPU domain defines */
-#define CPU_MAX_VDD		1000
+#define CPU_MAX_VDD		975
 
-#define CPU_MILLIVOLTS		750,	750,	800,	850,	875, 950,	975,	CPU_MAX_VDD
+#define CPU_MILLIVOLTS		700,	700,	850,	850,	850, 900,	925,	CPU_MAX_VDD
 
 /* core domain defines */
 #define CORE_MAX_VDD		1300
