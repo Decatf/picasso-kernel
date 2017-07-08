@@ -60,7 +60,7 @@ static u16 tegra_sdhci_readw(struct sdhci_host *host, int reg)
 	if (unlikely((soc_data->nvquirks & NVQUIRK_FORCE_SDHCI_SPEC_200) &&
 			(reg == SDHCI_HOST_VERSION))) {
 		/* Erratum: Version register is invalid in HW. */
-		return SDHCI_SPEC_200;
+		return SDHCI_SPEC_100;
 	}
 
 	return readw(host->ioaddr + reg);
