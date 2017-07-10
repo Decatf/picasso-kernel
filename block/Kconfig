@@ -117,6 +117,15 @@ source "block/partitions/Kconfig"
 
 endmenu
 
+config BIGPART
+	bool "Bigpart partition mod"
+	default n
+	help
+	  Say Y here to enable Bigpart partition configuration.
+
+	  This reconfigures the partition table at boot to expand the size of the
+	  system partition by taking space from other partitions.
+
 endif # BLOCK
 
 config BLOCK_COMPAT
