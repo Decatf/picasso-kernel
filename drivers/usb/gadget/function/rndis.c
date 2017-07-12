@@ -21,6 +21,8 @@
  *		updates to merge with Linux 2.6, better match RNDIS spec
  */
 
+#define DEBUG
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -37,7 +39,7 @@
 
 #include "u_rndis.h"
 
-#undef	VERBOSE_DEBUG
+// #undef	VERBOSE_DEBUG
 
 #include "rndis.h"
 
@@ -54,7 +56,7 @@ static int rndis_debug = 0;
 module_param (rndis_debug, int, 0);
 MODULE_PARM_DESC (rndis_debug, "enable debugging");
 #else
-#define rndis_debug		0
+#define rndis_debug		1
 #endif
 
 #define RNDIS_MAX_CONFIGS	1

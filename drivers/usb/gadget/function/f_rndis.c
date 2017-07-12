@@ -13,7 +13,8 @@
  * (at your option) any later version.
  */
 
-/* #define VERBOSE_DEBUG */
+#define DEBUG
+#define VERBOSE_DEBUG
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
