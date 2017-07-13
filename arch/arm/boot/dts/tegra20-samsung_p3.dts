@@ -20,6 +20,25 @@
 		reg = <0x20000000 0x20000000>;
 	};
 
+	host1x@50000000 {
+		dc@54200000 {
+			rgb {
+				status = "okay";
+
+				nvidia,panel = <&panel>;
+			};
+		};
+	};
+
+	panel: panel {
+		compatible = "samsung,cmc623-panel";
+
+		/* power-supply = <&vdd_pnl_reg>; */
+
+		/* backlight = <&backlight>; */
+		/* ddc-i2c-bus = <&lvds_ddc>; */
+	};
+
 	clocks {
 		compatible = "simple-bus";
 		#address-cells = <1>;
