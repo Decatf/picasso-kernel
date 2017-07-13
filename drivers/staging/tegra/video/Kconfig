@@ -199,7 +199,6 @@ config TEGRA_HDMI_74MHZ_LIMIT
 
 config FB_TEGRA_CMC623
 	bool "Samsung CMC623"
-	depends on FB_TEGRA 
 	default y
 	help
 	  This enables support for Samsung CMC623 image converter
