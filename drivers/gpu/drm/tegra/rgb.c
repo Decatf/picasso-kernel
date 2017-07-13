@@ -212,8 +212,11 @@ tegra_rgb_encoder_atomic_check(struct drm_encoder *encoder,
 	 * and hope that the desired frequency can be matched (or at least
 	 * matched sufficiently close that the panel will still work).
 	 */
-	div = ((clk_get_rate(rgb->clk) * 2) / pclk) - 2;
-	pclk = 0;
+	// div = ((clk_get_rate(rgb->clk) * 2) / pclk) - 2;
+	// pclk = 0;
+
+	div = 2;
+	pclk = 68750000;
 
 	err = tegra_dc_state_setup_clock(dc, crtc_state, rgb->clk_parent,
 					 pclk, div);
