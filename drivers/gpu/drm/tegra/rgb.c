@@ -239,20 +239,26 @@ int tegra_dc_rgb_probe(struct tegra_dc *dc)
 	int err;
 
 	np = of_get_child_by_name(dc->dev->of_node, "rgb");
-	if (!np || !of_device_is_available(np))
+	if (!np || !of_device_is_available(np)) {
+		pr_err("%s: error at of_get_child_by_name\n", __func__);
 		return -ENODEV;
+	}
 
 	rgb = devm_kzalloc(dc->dev, sizeof(*rgb), GFP_KERNEL);
-	if (!rgb)
+	if (!rgb) {
+		pr_err("%s: error at devm_kzalloc\n", __func__);
 		return -ENOMEM;
+	}
 
 	rgb->output.dev = dc->dev;
 	rgb->output.of_node = np;
 	rgb->dc = dc;
 
 	err = tegra_output_probe(&rgb->output);
-	if (err < 0)
+	if (err < 0) {
+		pr_err("%s: error at tegra_output_probe\n", __func__);
 		return err;
+	}
 
 	rgb->clk = devm_clk_get(dc->dev, NULL);
 	if (IS_ERR(rgb->clk)) {
@@ -260,17 +266,17 @@ int tegra_dc_rgb_probe(struct tegra_dc *dc)
 		return PTR_ERR(rgb->clk);
 	}
 
-	rgb->clk_parent = devm_clk_get(dc->dev, "parent");
+	rgb->clk_parent = devm_clk_get(dc->dev, "pll_c_out1");
 	if (IS_ERR(rgb->clk_parent)) {
 		dev_err(dc->dev, "failed to get parent clock\n");
 		return PTR_ERR(rgb->clk_parent);
 	}
 
-	err = clk_set_parent(rgb->clk, rgb->clk_parent);
-	if (err < 0) {
-		dev_err(dc->dev, "failed to set parent clock: %d\n", err);
-		return err;
-	}
+	// err = clk_set_parent(rgb->clk, rgb->clk_parent);
+	// if (err < 0) {
+	// 	dev_err(dc->dev, "failed to set parent clock: %d\n", err);
+	// 	return err;
+	// }
 
 	dc->rgb = &rgb->output;
 

@@ -1185,8 +1185,8 @@ int tegra_dc_state_setup_clock(struct tegra_dc *dc,
 {
 	struct tegra_dc_state *state = to_dc_state(crtc_state);
 
-	if (!clk_has_parent(dc->clk, clk))
-		return -EINVAL;
+	// if (!clk_has_parent(dc->clk, clk))
+	// 	return -EINVAL;
 
 	state->clk = clk;
 	state->pclk = pclk;
@@ -1200,7 +1200,7 @@ static void tegra_dc_commit_state(struct tegra_dc *dc,
 {
 	u32 value;
 	int err;
-
+#if 0
 	err = clk_set_parent(dc->clk, state->clk);
 	if (err < 0)
 		dev_err(dc->dev, "failed to set parent clock: %d\n", err);
@@ -1220,10 +1220,30 @@ static void tegra_dc_commit_state(struct tegra_dc *dc,
 				"failed to set clock rate to %lu Hz\n",
 				state->pclk);
 	}
+#endif
+
+	// struct clk *parent_clk = clk_get(dc->dev, "pll_c_out1");
+	// if (parent_clk) {
+	// 	err = clk_set_parent(dc->clk, parent_clk);
+	// 	if (err < 0)
+	// 		dev_err(dc->dev, "failed to set parent clock: %d\n", err);
+	// } else {
+	// 	pr_info("%s: failed to get parent clock\n", __func__);
+	// }
+
+	err = clk_set_rate(dc->clk, 137500000);
+	if (err < 0)
+		dev_err(dc->dev,
+			"failed to set clock rate to %lu Hz\n", 137500000);
 
 	DRM_DEBUG_KMS("rate: %lu, div: %u\n", clk_get_rate(dc->clk),
 		      state->div);
 	DRM_DEBUG_KMS("pclk: %lu\n", state->pclk);
+
+	pr_info("rate: %lu, div: %u\n", clk_get_rate(dc->clk),
+		      state->div);
+	pr_info("pclk: %lu\n", state->pclk);
+
 
 	value = SHIFT_CLK_DIVIDER(state->div) | PIXEL_CLK_DIVIDER_PCD1;
 	tegra_dc_writel(dc, value, DC_DISP_DISP_CLOCK_CONTROL);
@@ -1888,6 +1908,8 @@ static int tegra_dc_probe(struct platform_device *pdev)
 	struct tegra_dc *dc;
 	int err;
 
+	pr_info("%s +\n", __func__);
+
 	dc = devm_kzalloc(&pdev->dev, sizeof(*dc), GFP_KERNEL);
 	if (!dc)
 		return -ENOMEM;
@@ -1979,6 +2001,8 @@ static int tegra_dc_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "failed to allocate syncpoint\n");
 
 	platform_set_drvdata(pdev, dc);
+
+	pr_info("%s -\n", __func__);
 
 	return 0;
 }

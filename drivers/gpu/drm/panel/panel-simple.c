@@ -1105,12 +1105,18 @@ MODULE_DEVICE_TABLE(of, platform_of_match);
 static int panel_simple_platform_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id;
+	int ret;
+
+	pr_info("%s +\n", __func__);
 
 	id = of_match_node(platform_of_match, pdev->dev.of_node);
 	if (!id)
 		return -ENODEV;
 
-	return panel_simple_probe(&pdev->dev, id->data);
+	ret = panel_simple_probe(&pdev->dev, id->data);
+
+	pr_info("%s -\n", __func__);
+	return ret;
 }
 
 static int panel_simple_platform_remove(struct platform_device *pdev)
