@@ -919,6 +919,29 @@ static const struct panel_desc ortustech_com43h4m85ulc = {
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
 
+static const struct drm_display_mode samsung_cmc623_mode = {
+	.clock = 68750,
+	.hdisplay = 1280,
+	.hsync_start = 1280 + 16,
+	.hsync_end = 1280 + 16 + 48,
+	.htotal = 1280 + 16 + 48 +64,
+	.vdisplay = 800,
+	.vsync_start = 800 + 2,
+	.vsync_end = 800 + 2 + 3,
+	.vtotal = 800 + 2 + 3 + 11,
+	.vrefresh = 60,
+};
+
+static const struct panel_desc samsung_cmc623 = {
+	.modes = &samsung_cmc623_mode,
+	.num_modes = 1,
+	.bpc = 8,
+	.size = {
+		.width = 1280,
+		.height = 800,
+	},
+};
+
 static const struct drm_display_mode samsung_ltn101nt05_mode = {
 	.clock = 54030,
 	.hdisplay = 1024,
@@ -1061,6 +1084,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "ortustech,com43h4m85ulc",
 		.data = &ortustech_com43h4m85ulc,
+	}, {
+		.compatible = "samsung,cmc623-panel",
+		.data = &samsung_cmc623,
 	}, {
 		.compatible = "samsung,ltn101nt05",
 		.data = &samsung_ltn101nt05,
