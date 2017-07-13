@@ -937,8 +937,8 @@ static const struct panel_desc samsung_cmc623 = {
 	.num_modes = 1,
 	.bpc = 8,
 	.size = {
-		.width = 1280,
-		.height = 800,
+		.width = 217,
+		.height = 135,
 	},
 };
 
