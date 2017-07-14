@@ -1093,23 +1093,25 @@
 	usb@c5000000 {
 		compatible = "nvidia,tegra20-udc"; 
 		status = "okay";
+		dr_mode = "otg";
 	};
 
 	usb-phy@c5000000 {
 		status = "okay";
+/*
 		phy_type = "utmi";
 		nvidia,hssync-start-delay = <9>;
 		nvidia,elastic-limit = <16>;
 		nvidia,idle-wait-delay = <17>;
 		nvidia,term-range-adj = <6>;
 		
-		/* nvidia,xcvr-setup = <11>; */
 		nvidia,xcvr-setup-use-fuses;
 		
 		nvidia,xcvr-lsfslew = <2>;
 		nvidia,xcvr-lsrslew = <2>;
 
 		dr_mode = "peripheral";
+*/
 		vbus-supply = <&vbus1_reg>;
 	};
 /*
