@@ -1356,12 +1356,12 @@ static ssize_t p3_accel_cal_store(struct device *dev,
 	return size;
 }
 
-static DEVICE_ATTR(calibration, 0664, accel_calibration_show,
+static DEVICE_ATTR(calibration, S_IRUGO | S_IWUSR, accel_calibration_show,
 					accel_calibration_store);
-static DEVICE_ATTR(p3_accel_cal, 0664, NULL, p3_accel_cal_store);
+static DEVICE_ATTR(p3_accel_cal, S_IWUSR | S_IWGRP, NULL, p3_accel_cal_store);
 
-static DEVICE_ATTR(gyro_power_on, S_IRUGO | S_IWUSR, mpu3050_power_on, NULL);
-static DEVICE_ATTR(gyro_get_temp, S_IRUGO | S_IWUSR, mpu3050_get_temp, NULL);
+static DEVICE_ATTR(gyro_power_on, S_IRUGO, mpu3050_power_on, NULL);
+static DEVICE_ATTR(gyro_get_temp, S_IRUGO, mpu3050_get_temp, NULL);
 static DEVICE_ATTR(raw_data, S_IRUGO, mpu3050_acc_read, NULL);
 
 static struct device_attribute *accel_sensor_attrs[] = {
