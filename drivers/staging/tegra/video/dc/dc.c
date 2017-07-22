@@ -1156,11 +1156,22 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 	u32 val;
 
 	if (!nvhost_module_powered_ext(nvhost_get_parent(dc->ndev))) {
+		int clk_enabled = 0;
+
+		if (!tegra_is_clk_enabled(dc->clk)) {
+			clk_enabled = 1;
+			clk_prepare_enable(dc->clk);
+		}
+
 		WARN(1, "IRQ when DC not powered!\n");
 		tegra_dc_io_start(dc);
 		status = tegra_dc_readl(dc, DC_CMD_INT_STATUS);
 		tegra_dc_writel(dc, status, DC_CMD_INT_STATUS);
 		tegra_dc_io_end(dc);
+
+		if (clk_enabled)
+			clk_disable_unprepare(dc->clk);
+
 		return IRQ_HANDLED;
 	}
 
