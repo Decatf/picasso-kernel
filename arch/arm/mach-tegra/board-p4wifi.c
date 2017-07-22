@@ -506,8 +506,8 @@ static struct platform_device bluetooth_rfkill_device = {
 static struct gpiod_lookup_table bluetooth_gpio_lookup = {
 	.dev_id = "rfkill_gpio.1",
 	.table = {
-		GPIO_LOOKUP_IDX("tegra-gpio", GPIO_BT_nRST, NULL, 0, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("tegra-gpio", GPIO_BT_EN, NULL, 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("tegra-gpio", GPIO_BT_nRST, "reset", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("tegra-gpio", GPIO_BT_EN, "shutdown", GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };
@@ -534,8 +534,8 @@ static struct platform_device gps_rfkill_device = {
 static struct gpiod_lookup_table gps_gpio_lookup = {
 	.dev_id = "rfkill_gpio.0",
 	.table = {
-		GPIO_LOOKUP_IDX("tegra-gpio", GPIO_GPS_N_RST, NULL, 0, GPIO_ACTIVE_HIGH),
-		GPIO_LOOKUP_IDX("tegra-gpio", GPIO_GPS_PWR_EN, NULL, 1, GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("tegra-gpio", GPIO_GPS_N_RST, "reset", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("tegra-gpio", GPIO_GPS_PWR_EN, "shutdown", GPIO_ACTIVE_HIGH),
 		{ },
 	},
 };
