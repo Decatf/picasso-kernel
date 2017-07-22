@@ -1308,6 +1308,7 @@ static int configure_clock(struct snd_soc_codec *codec)
 static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	DEBUG_LOG("");
 
 	switch (level) {
@@ -1321,7 +1322,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
+		if (dapm->bias_level == SND_SOC_BIAS_OFF) {
 			/* Bring up VMID with fast soft start */
 			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
 					    WM8994_STARTUP_BIAS_ENA |
@@ -1361,7 +1362,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	}
 
-	codec->dapm.bias_level = level;
+	dapm->bias_level = level;
 
 	return 0;
 }
