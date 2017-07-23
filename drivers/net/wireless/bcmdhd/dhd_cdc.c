@@ -1,7 +1,7 @@
 /*
  * DHD Protocol Module for CDC and BDC.
  *
- * Copyright (C) 1999-2013, Broadcom Corporation
+ * Copyright (C) 1999-2017, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,10 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_cdc.c 416698 2013-08-06 07:53:34Z $
+ *
+ * <<Broadcom-WL-IPTag/Open:>>
+ *
+ * $Id: dhd_cdc.c 671577 2016-11-22 10:31:40Z $
  *
  * BDC is like CDC, except it includes a header for data packets to convey
  * packet priority over the bus, and flags (e.g. to indicate checksum status
@@ -46,6 +49,10 @@
 #include <wlfc_proto.h>
 #include <dhd_wlfc.h>
 #endif
+
+#ifdef DHD_ULP
+#include <dhd_ulp.h>
+#endif /* DHD_ULP */
 
 
 #define RETRIES 2		/* # of retries to retrieve matching ioctl response */
@@ -101,13 +108,11 @@ dhdcdc_cmplt(dhd_pub_t *dhd, uint32 id, uint32 len)
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
-
 	do {
 		ret = dhd_bus_rxctl(dhd->bus, (uchar*)&prot->msg, cdc_len);
 		if (ret < 0)
 			break;
 	} while (CDC_IOC_ID(ltoh32(prot->msg.flags)) != id);
-
 
 	return ret;
 }
@@ -141,6 +146,16 @@ dhdcdc_query_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uin
 
 	memset(msg, 0, sizeof(cdc_ioctl_t));
 
+#ifdef BCMSPI
+	/* 11bit gSPI bus allows 2048bytes of max-data.  We restrict 'len'
+	 * value which is 8Kbytes for various 'get' commands to 2000.  48 bytes are
+	 * left for sw headers and misc.
+	 */
+	if (len > 2000) {
+		DHD_ERROR(("dhdcdc_query_ioctl: len is truncated to 2000 bytes\n"));
+		len = 2000;
+	}
+#endif /* BCMSPI */
 	msg->cmd = htol32(cmd);
 	msg->len = htol32(len);
 	msg->flags = (++prot->reqid << CDCF_IOC_ID_SHIFT);
@@ -196,6 +211,9 @@ done:
 	return ret;
 }
 
+#ifdef DHD_PM_CONTROL_FROM_FILE
+extern bool g_pm_control;
+#endif /* DHD_PM_CONTROL_FROM_FILE */
 
 static int
 dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uint8 action)
@@ -220,6 +238,23 @@ dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uint8
 		return -EIO;
 	}
 
+	if (cmd == WLC_SET_PM) {
+#ifdef DHD_PM_CONTROL_FROM_FILE
+		if (g_pm_control == TRUE) {
+			DHD_ERROR(("%s: SET PM ignored!(Requested:%d)\n",
+				__FUNCTION__, buf ? *(char *)buf : 0));
+			goto done;
+		}
+#endif /* DHD_PM_CONTROL_FROM_FILE */
+#if defined(WLAIBSS)
+		if (dhd->op_mode == DHD_FLAG_IBSS_MODE) {
+			DHD_ERROR(("%s: SET PM ignored for IBSS!(Requested:%d)\n",
+				__FUNCTION__, buf ? *(char *)buf : 0));
+			goto done;
+		}
+#endif /* WLAIBSS */
+		DHD_TRACE_HW4(("%s: SET PM to %d\n", __FUNCTION__, buf ? *(char *)buf : 0));
+	}
 
 	memset(msg, 0, sizeof(cdc_ioctl_t));
 
@@ -234,6 +269,13 @@ dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uint8
 
 	if (buf)
 		memcpy(prot->buf, buf, len);
+
+#ifdef DHD_ULP
+	if (buf && (!strncmp(buf, "ulp", sizeof("ulp")))) {
+		/* force all the writes after this point to NOT to use cached sbwad value */
+		dhd_ulp_disable_cached_sbwad(dhd);
+	}
+#endif /* DHD_ULP */
 
 	if ((ret = dhdcdc_msg(dhd)) < 0) {
 		DHD_ERROR(("%s: dhdcdc_msg failed w/status %d\n", __FUNCTION__, ret));
@@ -252,6 +294,12 @@ dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len, uint8
 		ret = -EINVAL;
 		goto done;
 	}
+
+#ifdef DHD_ULP
+	/* For ulp prototyping temporary */
+	if ((ret = dhd_ulp_check_ulp_request(dhd, buf)) < 0)
+		goto done;
+#endif /* DHD_ULP */
 
 	/* Check the ERROR flag */
 	if (flags & CDCF_IOC_ERROR)
@@ -274,7 +322,8 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t * ioc, void * buf, int len)
 	uint8 action;
 
 	if ((dhd->busstate == DHD_BUS_DOWN) || dhd->hang_was_sent) {
-		DHD_ERROR(("%s : bus is down. we have nothing to do\n", __FUNCTION__));
+		DHD_ERROR(("%s : bus is down. we have nothing to do - bs: %d, has: %d\n",
+				__FUNCTION__, dhd->busstate, dhd->hang_was_sent));
 		goto done;
 	}
 
@@ -290,7 +339,7 @@ dhd_prot_ioctl(dhd_pub_t *dhd, int ifidx, wl_ioctl_t * ioc, void * buf, int len)
 			ioc->cmd, (unsigned long)ioc->cmd, prot->lastcmd,
 			(unsigned long)prot->lastcmd));
 		if ((ioc->cmd == WLC_SET_VAR) || (ioc->cmd == WLC_GET_VAR)) {
-			DHD_TRACE(("iovar cmd=%s\n", (char*)buf));
+			DHD_TRACE(("iovar cmd=%s\n", buf ? (char*)buf : "\0"));
 		}
 		goto done;
 	}
@@ -341,10 +390,13 @@ dhd_prot_iovar_op(dhd_pub_t *dhdp, const char *name,
 void
 dhd_prot_dump(dhd_pub_t *dhdp, struct bcmstrbuf *strbuf)
 {
+	if (!dhdp || !dhdp->prot) {
+		return;
+	}
+
 	bcm_bprintf(strbuf, "Protocol CDC: reqid %d\n", dhdp->prot->reqid);
 #ifdef PROP_TXSTATUS
-	if (dhdp->wlfc_state)
-		dhd_wlfc_dump(dhdp, strbuf);
+	dhd_wlfc_dump(dhdp, strbuf);
 #endif
 }
 
@@ -381,6 +433,17 @@ dhd_prot_hdrpush(dhd_pub_t *dhd, int ifidx, void *PKTBUF)
 }
 #undef PKTBUF	/* Only defined in the above routine */
 
+uint
+dhd_prot_hdrlen(dhd_pub_t *dhd, void *PKTBUF)
+{
+	uint hdrlen = 0;
+#ifdef BDC
+	/* Length of BDC(+WLFC) headers pushed */
+	hdrlen = BDC_HEADER_LEN + (((struct bdc_header *)PKTBUF)->dataOffset * 4);
+#endif
+	return hdrlen;
+}
+
 int
 dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf, uchar *reorder_buf_info,
 	uint *reorder_info_len)
@@ -412,11 +475,7 @@ dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf, uchar *reorder_buf_in
 		goto exit;
 	}
 
-	if ((*ifidx = BDC_GET_IF_IDX(h)) >= DHD_MAX_IFS) {
-		DHD_ERROR(("%s: rx data ifnum out of range (%d)\n",
-		           __FUNCTION__, *ifidx));
-		return BCME_ERROR;
-	}
+	*ifidx = BDC_GET_IF_IDX(h);
 
 	if (((h->flags & BDC_FLAG_VER_MASK) >> BDC_FLAG_VER_SHIFT) != BDC_PROTO_VER) {
 		DHD_ERROR(("%s: non-BDC packet received, flags = 0x%x\n",
@@ -438,42 +497,22 @@ dhd_prot_hdrpull(dhd_pub_t *dhd, int *ifidx, void *pktbuf, uchar *reorder_buf_in
 	PKTPULL(dhd->osh, pktbuf, BDC_HEADER_LEN);
 #endif /* BDC */
 
+
 #ifdef PROP_TXSTATUS
-	dhd_os_wlfc_block(dhd);
-	if (dhd->wlfc_state &&
-		((athost_wl_status_info_t*)dhd->wlfc_state)->proptxstatus_mode
-		!= WLFC_FCMODE_NONE &&
-		(!DHD_PKTTAG_PKTDIR(PKTTAG(pktbuf)))) {
+	if (!DHD_PKTTAG_PKTDIR(PKTTAG(pktbuf))) {
 		/*
 		- parse txstatus only for packets that came from the firmware
 		*/
 		dhd_wlfc_parse_header_info(dhd, pktbuf, (data_offset << 2),
 			reorder_buf_info, reorder_info_len);
-		((athost_wl_status_info_t*)dhd->wlfc_state)->stats.dhd_hdrpulls++;
 
 	}
-	dhd_os_wlfc_unblock(dhd);
 #endif /* PROP_TXSTATUS */
 
 exit:
-		PKTPULL(dhd->osh, pktbuf, (data_offset << 2));
+	PKTPULL(dhd->osh, pktbuf, (data_offset << 2));
 	return 0;
 }
-
-#if defined(PROP_TXSTATUS)
-void
-dhd_wlfc_trigger_pktcommit(dhd_pub_t *dhd)
-{
-	dhd_os_wlfc_block(dhd);
-	if (dhd->wlfc_state &&
-		(((athost_wl_status_info_t*)dhd->wlfc_state)->proptxstatus_mode
-		!= WLFC_FCMODE_NONE)) {
-		dhd_wlfc_commit_packets(dhd->wlfc_state, (f_commitpkt_t)dhd_bus_txdata,
-			(void *)dhd->bus, NULL);
-	}
-	dhd_os_wlfc_unblock(dhd);
-}
-#endif
 
 
 int
@@ -481,11 +520,10 @@ dhd_prot_attach(dhd_pub_t *dhd)
 {
 	dhd_prot_t *cdc;
 
-	if (!(cdc = (dhd_prot_t *)DHD_OS_PREALLOC(dhd->osh, DHD_PREALLOC_PROT,
-		sizeof(dhd_prot_t)))) {
-			DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
-			goto fail;
-		}
+	if (!(cdc = (dhd_prot_t *)DHD_OS_PREALLOC(dhd, DHD_PREALLOC_PROT, sizeof(dhd_prot_t)))) {
+		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
+		goto fail;
+	}
 	memset(cdc, 0, sizeof(dhd_prot_t));
 
 	/* ensure that the msg buf directly follows the cdc msg struct */
@@ -502,10 +540,8 @@ dhd_prot_attach(dhd_pub_t *dhd)
 	return 0;
 
 fail:
-#ifndef CONFIG_DHD_USE_STATIC_BUF
 	if (cdc != NULL)
-		MFREE(dhd->osh, cdc, sizeof(dhd_prot_t));
-#endif /* CONFIG_DHD_USE_STATIC_BUF */
+		DHD_OS_PREFREE(dhd, cdc, sizeof(dhd_prot_t));
 	return BCME_NOMEM;
 }
 
@@ -515,19 +551,16 @@ dhd_prot_detach(dhd_pub_t *dhd)
 {
 #ifdef PROP_TXSTATUS
 	dhd_wlfc_deinit(dhd);
-	if (dhd->plat_deinit)
-		dhd->plat_deinit((void *)dhd);
 #endif
-#ifndef CONFIG_DHD_USE_STATIC_BUF
-	MFREE(dhd->osh, dhd->prot, sizeof(dhd_prot_t));
-#endif /* CONFIG_DHD_USE_STATIC_BUF */
+	DHD_OS_PREFREE(dhd, dhd->prot, sizeof(dhd_prot_t));
 	dhd->prot = NULL;
 }
 
 void
 dhd_prot_dstats(dhd_pub_t *dhd)
 {
-	/* No stats from dongle added yet, copy bus stats */
+	/*  copy bus stats */
+
 	dhd->dstats.tx_packets = dhd->tx_packets;
 	dhd->dstats.tx_errors = dhd->tx_errors;
 	dhd->dstats.rx_packets = dhd->rx_packets;
@@ -538,12 +571,20 @@ dhd_prot_dstats(dhd_pub_t *dhd)
 }
 
 int
-dhd_prot_init(dhd_pub_t *dhd)
+dhd_sync_with_dongle(dhd_pub_t *dhd)
 {
 	int ret = 0;
 	wlc_rev_info_t revinfo;
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
+#ifdef DHD_FW_COREDUMP
+	/* Check the memdump capability */
+	dhd_get_memdump_info(dhd);
+#endif /* DHD_FW_COREDUMP */
+
+#ifdef BCMASSERT_LOG
+	dhd_get_assert_info(dhd);
+#endif /* BCMASSERT_LOG */
 
 	/* Get the device rev info */
 	memset(&revinfo, 0, sizeof(revinfo));
@@ -552,10 +593,12 @@ dhd_prot_init(dhd_pub_t *dhd)
 		goto done;
 
 
-#if defined(WL_CFG80211)
-	if (dhd_download_fw_on_driverload)
-#endif /* defined(WL_CFG80211) */
-		ret = dhd_preinit_ioctls(dhd);
+	DHD_SSSR_DUMP_INIT(dhd);
+
+	dhd_process_cid_mac(dhd, TRUE);
+	ret = dhd_preinit_ioctls(dhd);
+	dhd_process_cid_mac(dhd, FALSE);
+
 	/* Always assumes wl for now */
 	dhd->iswl = TRUE;
 
@@ -563,10 +606,15 @@ done:
 	return ret;
 }
 
+int dhd_prot_init(dhd_pub_t *dhd)
+{
+	return BCME_OK;
+}
+
 void
 dhd_prot_stop(dhd_pub_t *dhd)
 {
-	/* Nothing to do for CDC */
+/* Nothing to do for CDC */
 }
 
 
@@ -574,7 +622,6 @@ static void
 dhd_get_hostreorder_pkts(void *osh, struct reorder_info *ptr, void **pkt,
 	uint32 *pkt_count, void **pplast, uint8 start, uint8 end)
 {
-	uint i;
 	void *plast = NULL, *p;
 	uint32 pkt_cnt = 0;
 
@@ -585,15 +632,7 @@ dhd_get_hostreorder_pkts(void *osh, struct reorder_info *ptr, void **pkt,
 		*pkt = NULL;
 		return;
 	}
-	if (start == end)
-		i = ptr->max_idx + 1;
-	else {
-		if (start > end)
-			i = ((ptr->max_idx + 1) - start) + end;
-		else
-			i = end - start;
-	}
-	while (i) {
+	do {
 		p = (void *)(ptr->p[start]);
 		ptr->p[start] = NULL;
 
@@ -606,12 +645,13 @@ dhd_get_hostreorder_pkts(void *osh, struct reorder_info *ptr, void **pkt,
 			plast = p;
 			pkt_cnt++;
 		}
-		i--;
-		if (start++ == ptr->max_idx)
+		start++;
+		if (start > ptr->max_idx)
 			start = 0;
-	}
+	} while (start != end);
 	*pplast = plast;
-	*pkt_count = (uint32)pkt_cnt;
+	*pkt_count = pkt_cnt;
+	ptr->pend_pkts -= (uint8)pkt_cnt;
 }
 
 int
@@ -759,7 +799,6 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 
 			dhd_get_hostreorder_pkts(dhd->osh, ptr, pkt, &cnt, &plast,
 				cur_idx, exp_idx);
-			ptr->pend_pkts -= (uint8)cnt;
 			*pkt_count = cnt;
 			DHD_REORDER(("%s: freeing up buffers %d, still pending %d\n",
 				__FUNCTION__, cnt, ptr->pend_pkts));
@@ -816,7 +855,6 @@ dhd_process_pkt_reorder_info(dhd_pub_t *dhd, uchar *reorder_info_buf, uint reord
 			end_idx =  exp_idx;
 
 		dhd_get_hostreorder_pkts(dhd->osh, ptr, pkt, &cnt, &plast, ptr->exp_idx, end_idx);
-		ptr->pend_pkts -= (uint8)cnt;
 		if (plast)
 			PKTSETNEXT(dhd->osh, plast, cur_pkt);
 		else
