@@ -552,6 +552,17 @@ config SEC_MISC
 	  Enable this to be able to support miscellaneous functions for P3 devices
 	  - tuning image converters(CMC623), updating touch firmwares.
 
+config SAMSUNG_JACK
+	bool "3.5MM ear jack driver for Samsung devices"
+	depends on INPUT && SWITCH
+	default n
+	---help---
+	 This is 3.5MM ear jack driver for Samsung devices.
+	 Please check configurations on board file,
+	 and you shoud check gpio_input driver is ready.
+
+	 If unsure, say N.
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
