@@ -57,6 +57,9 @@ mmc_host_clk_release(struct mmc_host *host)
 #include <drivers/mmc/core/host.h>
 #else
 #include <linux/mmc/host.h>
+extern void mmc_host_clk_hold(struct mmc_host *host);
+extern void mmc_host_clk_release(struct mmc_host *host);
+extern unsigned int mmc_host_clk_rate(struct mmc_host *host);
 #endif /* (LINUX_VERSION_CODE <= KERNEL_VERSION(3, 0, 0)) */
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
