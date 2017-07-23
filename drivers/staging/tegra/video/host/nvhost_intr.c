@@ -318,6 +318,7 @@ void nvhost_intr_put_ref(struct nvhost_intr *intr, u32 id, void *ref)
 
 int nvhost_intr_init(struct nvhost_intr *intr, u32 irq_gen, u32 irq_sync)
 {
+	struct sched_param param = { .sched_priority = 1 };
 	unsigned int id;
 	struct nvhost_intr_syncpt *syncpt;
 	struct nvhost_master *host = intr_to_dev(intr);
@@ -328,9 +329,17 @@ int nvhost_intr_init(struct nvhost_intr *intr, u32 irq_gen, u32 irq_sync)
 	mutex_init(&intr->mutex);
 	intr->host_syncpt_irq_base = irq_sync;
 	intr->syncpt_irq_requested = false;
-	intr->wq = create_workqueue("host_syncpt");
-	if (!intr->wq)
+
+	init_kthread_worker(&intr->worker);
+	intr->worker_thread = kthread_run(kthread_worker_fn,
+		&intr->worker, "host_syncpt");
+
+	if (IS_ERR(intr->worker_thread)) {
+		pr_err("%s() unable to start host_syncpt worker\n", __func__);
 		return -ENOMEM;
+	}
+	sched_setscheduler(intr->worker_thread, SCHED_FIFO, &param);
+
 	intr_op().init_host_sync(intr);
 	intr->host_general_irq = irq_gen;
 	intr_op().request_host_general_irq(intr);
@@ -350,7 +359,7 @@ int nvhost_intr_init(struct nvhost_intr *intr, u32 irq_gen, u32 irq_sync)
 void nvhost_intr_deinit(struct nvhost_intr *intr)
 {
 	nvhost_intr_stop(intr);
-	destroy_workqueue(intr->wq);
+	kthread_stop(intr->worker_thread);
 }
 
 void nvhost_intr_start(struct nvhost_intr *intr, u32 hz)
