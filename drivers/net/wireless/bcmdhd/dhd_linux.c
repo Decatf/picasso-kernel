@@ -388,6 +388,10 @@ static int __dhd_apf_config_filter(struct net_device *ndev, uint32 filter_id,
 static int __dhd_apf_delete_filter(struct net_device *ndev, uint32 filter_id);
 #endif /* PKT_FILTER_SUPPORT && APF */
 
+#ifdef READ_MACADDR
+extern int dhd_read_macaddr(struct dhd_info *dhd, struct ether_addr *mac);
+#endif
+
 #ifdef CUSTOMER_HW4
 #ifdef MIMO_ANT_SETTING
 extern int dhd_sel_ant_from_file(dhd_pub_t *dhd);
@@ -9743,6 +9747,10 @@ dhd_bus_start(dhd_pub_t *dhdp)
 	DHD_ERROR(("Time taken for FW download and F2 ready is: %d msec\n",
 			(fw_download_end - fw_download_start) + (f2_sync_end - f2_sync_start)));
 #endif /* DHD_DEBUG && BCMSDIO */
+
+#ifdef READ_MACADDR
+	dhd_read_macaddr(dhd, &dhd->pub.mac);
+#endif
 
 #ifdef ARP_OFFLOAD_SUPPORT
 	if (dhd->pend_ipaddr) {

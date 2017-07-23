@@ -361,6 +361,89 @@ void get_customized_country_code(void *adapter, char *country_iso_code, wl_count
 #define ADPSINFO	PLATFORM_PATH".adps.info"
 #define SOFTAPINFO	PLATFORM_PATH".softap.info"
 
+#ifdef READ_MACADDR
+#define MACINFO_EFS "/efs/wifi/.mac.info"
+extern int _dhd_set_mac_address(struct dhd_info *dhd, int ifidx, struct ether_addr *addr);
+
+int dhd_read_macaddr(struct dhd_info *dhd, struct ether_addr *mac)
+{
+	struct file *fp      = NULL;
+	char macbuffer[18]   = {0};
+	mm_segment_t oldfs   = {0};
+	char randommac[3]    = {0};
+	char buf[18]         = {0};
+	char *filepath_efs       = MACINFO_EFS;
+	int ret = 0;
+
+		fp = filp_open(filepath_efs, O_RDONLY, 0);
+		if (IS_ERR(fp)) {
+start_readmac:
+			/* File Doesn't Exist. Create and write mac addr. */
+			fp = filp_open(filepath_efs, O_RDWR | O_CREAT, 0666);
+			if (IS_ERR(fp)) {
+			DHD_ERROR(("[WIFI] %s: File open error\n", filepath_efs));
+				return -1;
+			}
+			oldfs = get_fs();
+			set_fs(get_ds());
+
+			/* Generating the Random Bytes for 3 last octects of the MAC address */
+			get_random_bytes(randommac, 3);
+
+			sprintf(macbuffer, "%02X:%02X:%02X:%02X:%02X:%02X\n",
+				0x00, 0x12, 0x34, randommac[0], randommac[1], randommac[2]);
+			DHD_ERROR(("[WIFI]The Random Generated MAC ID: %s\n", macbuffer));
+
+			if (fp->f_mode & FMODE_WRITE) {
+			ret = fp->f_op->write(fp, (const char *)macbuffer,
+				sizeof(macbuffer), &fp->f_pos);
+				if (ret < 0)
+				DHD_ERROR(("[WIFI]MAC address [%s] Failed to write into File: %s\n",
+					macbuffer, filepath_efs));
+				else
+				DHD_ERROR(("[WIFI]MAC address [%s] written into File: %s\n",
+					macbuffer, filepath_efs));
+			}
+			set_fs(oldfs);
+		/* Reading the MAC Address from .mac.info file
+		   ( the existed file or just created file)
+		 */
+		ret = kernel_read(fp, 0, buf, 18);
+	} else {
+		/* Reading the MAC Address from
+		   .mac.info file( the existed file or just created file)
+		 */
+		ret = kernel_read(fp, 0, buf, 18);
+/* to prevent abnormal string display when mac address is displayed on the screen. */
+		buf[17] = '\0';
+		if (strncmp(buf, "00:00:00:00:00:00", 17) < 1) {
+			DHD_ERROR(("goto start_readmac \r\n"));
+			filp_close(fp, NULL);
+			goto start_readmac;
+		}
+	}
+
+	if (ret)
+		sscanf(buf, "%02X:%02X:%02X:%02X:%02X:%02X",
+			(unsigned int *)&(mac->octet[0]), (unsigned int *)&(mac->octet[1]),
+			(unsigned int *)&(mac->octet[2]), (unsigned int *)&(mac->octet[3]),
+			(unsigned int *)&(mac->octet[4]), (unsigned int *)&(mac->octet[5]));
+	else
+		DHD_ERROR(("dhd_bus_start: Reading from the '%s' returns 0 bytes\n", filepath_efs));
+
+	if (fp)
+		filp_close(fp, NULL);
+
+	/* Writing Newly generated MAC ID to the Dongle */
+	if (_dhd_set_mac_address(dhd, 0, mac) == 0)
+		DHD_INFO(("dhd_bus_start: MACID is overwritten\n"));
+	else
+		DHD_ERROR(("dhd_bus_start: _dhd_set_mac_address() failed\n"));
+
+	return 0;
+}
+#endif /* READ_MACADDR */
+
 #ifdef DHD_PM_CONTROL_FROM_FILE
 extern bool g_pm_control;
 void sec_control_pm(dhd_pub_t *dhd, uint *power_mode)
