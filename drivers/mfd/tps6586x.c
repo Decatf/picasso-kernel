@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
+#include <linux/delay.h>
 
 #include <linux/mfd/core.h>
 #include <linux/mfd/tps6586x.h>
@@ -468,10 +469,42 @@ static const struct regmap_config tps6586x_regmap_config = {
 static struct device *tps6586x_dev;
 static void tps6586x_power_off(void)
 {
-	if (tps6586x_clr_bits(tps6586x_dev, TPS6586X_SUPPLYENE, EXITSLREQ_BIT))
+	uint8_t data = 0;
+	uint32_t count = 0;
+	int ret;
+
+	if (!tps6586x_dev)
 		return;
 
-	tps6586x_set_bits(tps6586x_dev, TPS6586X_SUPPLYENE, SLEEP_MODE_BIT);
+	while (1) {
+		/* SLEEP REQUEST EXIT CONTROL */
+		tps6586x_clr_bits(tps6586x_dev, TPS6586X_SUPPLYENE, EXITSLREQ_BIT);
+		ret = tps6586x_read(tps6586x_dev, TPS6586X_SUPPLYENE, &data);
+		if (ret < 0) {
+			pr_err("%s() failed to read with return : %d\n",
+				__func__, ret);
+			continue;
+		}
+		if (data & EXITSLREQ_BIT) {
+			pr_warn("%s: EXITSLREQ_BIT is not set(0x%x)\n", __func__, data);
+			continue;
+		}
+
+		/* Set TPS6586X in SLEEP MODE. The device will be powered off */
+		tps6586x_set_bits(tps6586x_dev, TPS6586X_SUPPLYENE, SLEEP_MODE_BIT);
+		mdelay(100);
+		/* The below code should not excute in normal case */
+		ret = tps6586x_read(tps6586x_dev, TPS6586X_SUPPLYENE, &data);
+		if (ret < 0) {
+			pr_err("%s() failed to read with return : %d\n",
+				__func__, ret);
+		} else if (data & SLEEP_MODE_BIT) {
+			pr_info("%s: SLEEP_MODE_BIT is set\n", __func__);
+			break;
+		}
+
+		mdelay(1000);
+	}
 }
 
 static void tps6586x_print_version(struct i2c_client *client, int version)
@@ -572,6 +605,12 @@ static int tps6586x_i2c_probe(struct i2c_client *client,
 		tps6586x_dev = &client->dev;
 		pm_power_off = tps6586x_power_off;
 	}
+
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+	#define TPS6586X_CHG2		0x4A
+	/* Disable Charger LDO mode, Dynamic Timer Function */
+	tps6586x_write(tps6586x->dev, TPS6586X_CHG2, 0x00);
+#endif
 
 	return 0;
 

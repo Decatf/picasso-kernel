@@ -237,7 +237,7 @@ config BATTERY_MAX17040
 	  in handheld and portable equipment. The MAX17040 is configured
 	  to operate with a single lithium cell
 
-config BATTERY_MAX17042
+config BATTERY_MAX17042_P4
 	tristate "Maxim MAX17042/17047/17050/8997/8966 Fuel Gauge"
 	depends on I2C
 	select REGMAP_I2C
@@ -507,6 +507,14 @@ config AXP20X_POWER
 	help
 	  This driver provides support for the power supply features of
 	  AXP20x PMIC.
+
+config BATTERY_P4
+	tristate "P4 battery"
+	depends on I2C
+	help
+	 Say Y to include support for P4 battery & fuel gauge (I2C) fuel gauge chips.
+         FuelGuage Support includes interface to the MAX17042/40/43 chips as
+         applicable.
 
 source "drivers/power/reset/Kconfig"
 
