@@ -1610,7 +1610,6 @@ int mpu3050_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 	if (IS_ERR(sec_mpu3050_dev))
 		printk(KERN_ERR "Failed to create device!");
 
-/*
 	if (device_create_file(sec_mpu3050_dev, &dev_attr_gyro_power_on) < 0) {
 		printk(KERN_ERR "Failed to create device file(%s)!\n",
 		       dev_attr_gyro_power_on.attr.name);
@@ -1623,7 +1622,7 @@ int mpu3050_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 		device_remove_file(sec_mpu3050_dev, &dev_attr_gyro_power_on);
 		return -1;
 	}
-*/
+
 #endif
 	return res;
 
