@@ -102,7 +102,7 @@ struct nvhost_device tegra_gr3d01_t20_device = {
 	.waitbases	= BIT(NVWAITBASE_3D),
 	.modulemutexes	= BIT(NVMODMUTEX_3D),
 	.class		= NV_GRAPHICS_3D_CLASS_ID,
-	.clocks		= {{"gr3d", 300000000}, {"emc", 400000000}, {} },
+	.clocks		= {{"gr3d", 400000000}, {"emc", 400000000}, {} },
 	.powergate_ids	= {TEGRA_POWERGATE_3D, -1},
 	NVHOST_DEFAULT_CLOCKGATE_DELAY,
 	.moduleid	= NVHOST_MODULE_NONE,
