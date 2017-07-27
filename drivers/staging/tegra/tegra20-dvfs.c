@@ -542,7 +542,7 @@ static void dvfs_start_locked(void)
 
 static void dvfs_stop_locked(void)
 {
-	update_voltages(CPU_MAX_VDD * 1000, CORE_MAX_VDD * 1000);
+	update_voltages(dvfs_get_cpu_voltage(), dvfs_get_core_voltage());
 	dvfs_enabled = false;
 }
 
