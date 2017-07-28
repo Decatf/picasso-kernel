@@ -491,16 +491,18 @@ static void dvfs_init(struct dvfs_domain *dvfs,
 		INIT_LIST_HEAD(&client->node);
 
 		rate = clk_get_rate(client->clk);
+
+		/*
+		 * cpu freqs are defined in MHz while rate is in Hz,
+		 * update_freq_index() will compare cpu freqs in Khz.
+		 * so convert rate to KHz
+		 */
+		if (dvfs == &dvfs_cpu)
+			rate /= 1000;
+
 		update_freq_index(client, rate);
 
 		if (__clk_get_enable_count(client->clk)) {
-			/*
-			 * cpu freqs are defined in MHz while rate is in Hz,
-			 * so convert rate to KHz
-			 */
-			if (dvfs == &dvfs_cpu)
-				rate /= 1000;
-
 			list_add(&client->node, &dvfs->active_clients);
 
 			dev_dbg(dvfs_dev, "%s rate = %luHz index = %d\n",
