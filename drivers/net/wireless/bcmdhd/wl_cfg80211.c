@@ -6537,6 +6537,7 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 		sinfo->signal = rssi;
 		WL_DBG(("RSSI %d dBm\n", rssi));
 
+#ifndef DISABLE_IF_COUNTERS
 		if ((if_stats = kmalloc(sizeof(*if_stats), GFP_KERNEL)) == NULL) {
 			WL_ERR(("%s(%d): kmalloc failed\n", __FUNCTION__, __LINE__));
 			goto error;
@@ -6548,7 +6549,6 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 		if (err) {
 			WL_ERR(("%s: if_counters not supported ret=%d\n",
 				__FUNCTION__, err));
-
 			err = wldev_ioctl(dev, WLC_GET_PKTCNTS, &pktcnt,
 				sizeof(pktcnt), false);
 			if (!err) {
@@ -6564,7 +6564,16 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 			sinfo->tx_failed = (uint32)dtoh64(if_stats->txerror) +
 				(uint32)dtoh64(if_stats->txfail);
 		}
-
+#else
+		err = wldev_ioctl(dev, WLC_GET_PKTCNTS, &pktcnt,
+			sizeof(pktcnt), false);
+		if (!err) {
+			sinfo->rx_packets = pktcnt.rx_good_pkt;
+			sinfo->rx_dropped_misc = pktcnt.rx_bad_pkt;
+			sinfo->tx_packets = pktcnt.tx_good_pkt;
+			sinfo->tx_failed  = pktcnt.tx_bad_pkt;
+		}
+#endif
 		sinfo->filled |= (STA_INFO_BIT(INFO_RX_PACKETS) |
 			STA_INFO_BIT(INFO_RX_DROP_MISC) |
 			STA_INFO_BIT(INFO_TX_PACKETS) |
@@ -6585,7 +6594,9 @@ get_station_err:
 			CFG80211_DISCONNECTED(dev, 0, NULL, 0, false, GFP_KERNEL);
 			wl_link_down(cfg);
 		}
+#ifndef DISABLE_IF_COUNTERS
 error:
+#endif
 		if (if_stats) {
 			kfree(if_stats);
 		}
