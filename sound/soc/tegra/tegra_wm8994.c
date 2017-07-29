@@ -363,9 +363,9 @@ static int tegra_wm8994_driver_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	ret = snd_soc_of_parse_audio_routing(card, "nvidia,audio-routing");
-	if (ret)
-		goto err;
+	// ret = snd_soc_of_parse_audio_routing(card, "nvidia,audio-routing");
+	// if (ret)
+	// 	goto err;
 
 	tegra_wm8994_dai[0].codec_of_node = of_parse_phandle(np,
 						"nvidia,audio-codec", 0);
