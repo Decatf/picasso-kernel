@@ -893,8 +893,8 @@ static struct device_attribute p3_battery_attrs[] = {
 	SEC_BATTERY_ATTR(batt_full_check),
 #ifdef CONFIG_SAMSUNG_LPM_MODE
 	SEC_BATTERY_ATTR(batt_lp_charging),
-	SEC_BATTERY_ATTR(voltage_now),
 #endif
+	SEC_BATTERY_ATTR(voltage_now),
 	SEC_BATTERY_ATTR(fg_capacity),
 };
 
@@ -918,8 +918,8 @@ enum {
 	BATT_FULL_CHECK,
 #ifdef CONFIG_SAMSUNG_LPM_MODE
 	CHARGING_MODE_BOOTING,
-	VOLTAGE_NOW,
 #endif
+	VOLTAGE_NOW,
 	FG_CAPACITY,
 };
 
@@ -1016,11 +1016,11 @@ static ssize_t p3_bat_show_property(struct device *dev,
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			test_batterydata->charging_mode_booting);
 		break;
+#endif
 	case VOLTAGE_NOW:
 		i += scnprintf(buf + i, PAGE_SIZE - i, "%d\n",
 			get_fuelgauge_value(FG_VOLTAGE_NOW));
 		break;
-#endif
 	case FG_CAPACITY:
 		i += scnprintf(buf + i, PAGE_SIZE - i,
 				"0x%04x 0x%04x 0x%04x 0x%04x\n",
