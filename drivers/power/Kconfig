@@ -516,6 +516,13 @@ config BATTERY_P4
          FuelGuage Support includes interface to the MAX17042/40/43 chips as
          applicable.
 
+config SAMSUNG_LPM_MODE
+	bool "Off charging mode support in P3 battery driver"
+	help
+	 Say Y to include support for P3 off charging support.
+         This includes the support for charging of the battery
+         in switch off mode.
+
 source "drivers/power/reset/Kconfig"
 
 endif # POWER_SUPPLY
