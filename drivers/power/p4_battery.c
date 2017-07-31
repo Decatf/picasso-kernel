@@ -137,9 +137,6 @@ struct battery_data {
 struct battery_data *test_batterydata;
 
 #ifdef CONFIG_SAMSUNG_LPM_MODE
-/* to notify lpm state to other modules */
-int lpm_mode_flag;
-EXPORT_SYMBOL(lpm_mode_flag);
 unsigned int usb_charger_Disconnect_times; /*SNMC - pankaj.s4*/
 EXPORT_SYMBOL(usb_charger_Disconnect_times);
 #endif
@@ -192,7 +189,6 @@ static void lpm_mode_check(struct battery_data *battery)
 
 	if (check_ta_conn(battery)) {
 		battery->charging_mode_booting = 1;
-		lpm_mode_flag = 1;
 		pr_info("%s : charging_mode_booting(%d)\n", __func__,
 			battery->charging_mode_booting);
 	} else {
