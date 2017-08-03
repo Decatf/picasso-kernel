@@ -34,6 +34,7 @@
 #include <linux/slab.h>
 #include <linux/sys_soc.h>
 #include <linux/usb/tegra_usb_phy.h>
+#include <linux/sec_jack.h>
 
 #include <soc/tegra/fuse.h>
 #include <soc/tegra/pmc.h>
@@ -55,9 +56,13 @@
 #include "reset.h"
 #include "sleep.h"
 
+extern struct p3_battery_platform_data p3_battery_platform;
+
 static struct of_dev_auxdata tegra20_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("samsung,p4-battery", 0, "p3-battery", &p3_battery_platform),
 	{}
 };
+
 /*
  * Storage for debug-macro.S's state.
  *
@@ -143,6 +148,7 @@ static struct {
 } board_init_funcs[] = {
 	{ "compal,paz00", paz00_init },
 	{ "acer,picasso", picasso_init },
+	{ "nvidia,samsung_p3", p4wifi_machine_init },
 };
 
 static void __init tegra_dt_init_late(void)
@@ -168,7 +174,7 @@ static const char * const tegra_dt_board_compat[] = {
 	NULL
 };
 
-DT_MACHINE_START(TEGRA_DT, "nVidia Tegra20 FDT")
+DT_MACHINE_START(TEGRA_DT, "p3")
 	.l2c_aux_val	= 0x3c400001,
 	.l2c_aux_mask	= 0xc20fc3fe,
 	.smp		= smp_ops(tegra_smp_ops),
@@ -179,4 +185,5 @@ DT_MACHINE_START(TEGRA_DT, "nVidia Tegra20 FDT")
 	.init_late	= tegra_dt_init_late,
 	.restart	= tegra_pmc_restart,
 	.dt_compat	= tegra_dt_board_compat,
+	.reserve        = p3_reserve,
 MACHINE_END
