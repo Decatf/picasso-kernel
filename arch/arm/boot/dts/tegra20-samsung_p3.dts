@@ -10,7 +10,6 @@
 
 	aliases {
 		rtc0 = "/i2c@7000d000/tps6586x@74";
-		rtc1 = "/rtc@7000e000";
 		serial0 = &uarta;
 		serial2 = &uartc;
 	};
@@ -27,6 +26,12 @@
 	memory {
 		reg = <0x00000000 0x1FF00000>;
 		reg = <0x20000000 0x20000000>;
+	};
+
+	/* Disable tegra20-rtc because it breaks tps6586x rtc */
+	rtc@7000e000 {
+		compatible = "nvidia,tegra20-rtc";
+		status = "disabled";
 	};
 
 	clocks {
