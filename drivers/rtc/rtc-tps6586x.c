@@ -261,7 +261,7 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 	rtc->irq = platform_get_irq(pdev, 0);
 
 	/* Set epoch start as 00:00:00:01:01:2009 */
-	rtc->epoch_start = mktime(2009, 1, 1, 0, 0, 0);
+	rtc->epoch_start = mktime(2004, 1, 1, 0, 0, 0);
 
 	/* 1 kHz tick mode, enable tick counting */
 	ret = tps6586x_update(tps_dev, RTC_CTRL,
