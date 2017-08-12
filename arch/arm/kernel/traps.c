@@ -444,14 +444,14 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 		return;
 
 die_sig:
-#ifdef CONFIG_DEBUG_USER
-	if (user_debug & UDBG_UNDEFINED) {
+// #ifdef CONFIG_DEBUG_USER
+	// if (user_debug & UDBG_UNDEFINED) {
 		printk(KERN_INFO "%s (%d): undefined instruction: pc=%p\n",
 			current->comm, task_pid_nr(current), pc);
 		__show_regs(regs);
 		dump_instr(KERN_INFO, regs);
-	}
-#endif
+	// }
+// #endif
 
 	info.si_signo = SIGILL;
 	info.si_errno = 0;
