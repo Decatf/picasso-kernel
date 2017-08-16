@@ -1894,6 +1894,9 @@ static int udc_start(struct ci_hdrc *ci)
 						otg_caps->adp_support))
 		ci->gadget.is_otg = 1;
 
+	if (ci->platdata->flags & CI_HDRC_REQUIRES_ALIGNED_DMA)
+		ci->gadget.quirk_avoids_skb_reserve = 1;
+
 	INIT_LIST_HEAD(&ci->gadget.ep_list);
 
 	/* alloc resources */
