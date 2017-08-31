@@ -544,6 +544,10 @@ static struct gpiod_lookup_table gps_gpio_lookup = {
 #include <soc/tegra/pmc.h>
 
 
+#define GPIO_ACCESSORY_EN	70 // TEGRA_GPIO_PI6
+#define GPIO_CP_ON		115 //TEGRA_GPIO_PO3
+#define GPIO_CP_RST		185 // TEGRA_GPIO_PX1
+
 void __init p4wifi_machine_init(void)
 {
 	pr_info("%s()\n", __func__);
@@ -560,4 +564,10 @@ void __init p4wifi_machine_init(void)
 	platform_device_register(&gps_rfkill_device);
 
 	tegra_powergate_power_off(TEGRA_POWERGATE_PCIE);
+
+	gpio_direction_output(GPIO_ACCESSORY_EN, 0);
+
+
+	gpio_set_value(GPIO_CP_ON, 0);
+	gpio_set_value(GPIO_CP_RST, 0);
 }
