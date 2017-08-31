@@ -316,8 +316,30 @@ static irqreturn_t tps6586x_irq(int irq, void *data)
 	u32 acks;
 	int ret = 0;
 
+#ifdef CONFIG_MACH_SAMSUNG_VARIATION_TEGRA
+	/* there's a race between the running of this threaded
+	 * irq handler and the resume of the tegra i2c controller
+	 * so sleep briefly to make sure the i2c controller has
+	 * been resumed first.
+	 */
 	ret = tps6586x_reads(tps6586x->dev, TPS6586X_INT_ACK1,
 			     sizeof(acks), (uint8_t *)&acks);
+	if (ret < 0) {
+		int i;
+		for (i = 0; i < 5; i++) {
+			pr_info("%s: failed reading INT_ACK1, sleep & retry\n",
+				__func__);
+			usleep_range(10000, 20000);
+			ret = tps6586x_reads(tps6586x->dev, TPS6586X_INT_ACK1,
+					sizeof(acks), (uint8_t *)&acks);
+			if (!ret)
+				break;
+		}
+	}
+#else
+	ret = tps6586x_reads(tps6586x->dev, TPS6586X_INT_ACK1,
+			     sizeof(acks), (uint8_t *)&acks);
+#endif
 
 	if (ret < 0) {
 		dev_err(tps6586x->dev, "failed to read interrupt status\n");
