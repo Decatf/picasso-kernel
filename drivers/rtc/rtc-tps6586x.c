@@ -286,7 +286,11 @@ static int tps6586x_rtc_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
 				tps6586x_rtc_irq,
+#ifndef CONFIG_ANDROID
 				IRQF_ONESHOT | IRQF_EARLY_RESUME,
+#else
+				IRQF_ONESHOT | IRQF_EARLY_RESUME | IRQF_NO_SUSPEND,
+#endif
 				dev_name(&pdev->dev), rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "request IRQ(%d) failed with ret %d\n",
@@ -311,6 +315,7 @@ static int tps6586x_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifndef CONFIG_ANDROID
 #ifdef CONFIG_PM_SLEEP
 static int tps6586x_rtc_suspend(struct device *dev)
 {
@@ -333,11 +338,15 @@ static int tps6586x_rtc_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(tps6586x_pm_ops, tps6586x_rtc_suspend,
 			tps6586x_rtc_resume);
+#endif
 
 static struct platform_driver tps6586x_rtc_driver = {
 	.driver	= {
 		.name	= "tps6586x-rtc",
+		.owner	= THIS_MODULE,
+#ifndef CONFIG_ANDROID
 		.pm	= &tps6586x_pm_ops,
+#endif
 	},
 	.probe	= tps6586x_rtc_probe,
 	.remove	= tps6586x_rtc_remove,
