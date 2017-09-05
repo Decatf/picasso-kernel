@@ -359,89 +359,7 @@ void get_customized_country_code(void *adapter, char *country_iso_code, wl_count
 #define RSDBINFO	PLATFORM_PATH".rsdb.info"
 #define LOGTRACEINFO	PLATFORM_PATH".logtrace.info"
 #define ADPSINFO	PLATFORM_PATH".adps.info"
-
-#ifdef READ_MACADDR
-#define MACINFO_EFS "/efs/wifi/.mac.info"
-extern int _dhd_set_mac_address(struct dhd_info *dhd, int ifidx, struct ether_addr *addr);
-
-int dhd_read_macaddr(struct dhd_info *dhd, struct ether_addr *mac)
-{
-	struct file *fp      = NULL;
-	char macbuffer[18]   = {0};
-	mm_segment_t oldfs   = {0};
-	char randommac[3]    = {0};
-	char buf[18]         = {0};
-	char *filepath_efs       = MACINFO_EFS;
-	int ret = 0;
-
-		fp = filp_open(filepath_efs, O_RDONLY, 0);
-		if (IS_ERR(fp)) {
-start_readmac:
-			/* File Doesn't Exist. Create and write mac addr. */
-			fp = filp_open(filepath_efs, O_RDWR | O_CREAT, 0666);
-			if (IS_ERR(fp)) {
-			DHD_ERROR(("[WIFI] %s: File open error\n", filepath_efs));
-				return -1;
-			}
-			oldfs = get_fs();
-			set_fs(get_ds());
-
-			/* Generating the Random Bytes for 3 last octects of the MAC address */
-			get_random_bytes(randommac, 3);
-
-			sprintf(macbuffer, "%02X:%02X:%02X:%02X:%02X:%02X\n",
-				0x00, 0x12, 0x34, randommac[0], randommac[1], randommac[2]);
-			DHD_ERROR(("[WIFI]The Random Generated MAC ID: %s\n", macbuffer));
-
-			if (fp->f_mode & FMODE_WRITE) {
-			ret = fp->f_op->write(fp, (const char *)macbuffer,
-				sizeof(macbuffer), &fp->f_pos);
-				if (ret < 0)
-				DHD_ERROR(("[WIFI]MAC address [%s] Failed to write into File: %s\n",
-					macbuffer, filepath_efs));
-				else
-				DHD_ERROR(("[WIFI]MAC address [%s] written into File: %s\n",
-					macbuffer, filepath_efs));
-			}
-			set_fs(oldfs);
-		/* Reading the MAC Address from .mac.info file
-		   ( the existed file or just created file)
-		 */
-		ret = kernel_read(fp, 0, buf, 18);
-	} else {
-		/* Reading the MAC Address from
-		   .mac.info file( the existed file or just created file)
-		 */
-		ret = kernel_read(fp, 0, buf, 18);
-/* to prevent abnormal string display when mac address is displayed on the screen. */
-		buf[17] = '\0';
-		if (strncmp(buf, "00:00:00:00:00:00", 17) < 1) {
-			DHD_ERROR(("goto start_readmac \r\n"));
-			filp_close(fp, NULL);
-			goto start_readmac;
-		}
-	}
-
-	if (ret)
-		sscanf(buf, "%02X:%02X:%02X:%02X:%02X:%02X",
-			(unsigned int *)&(mac->octet[0]), (unsigned int *)&(mac->octet[1]),
-			(unsigned int *)&(mac->octet[2]), (unsigned int *)&(mac->octet[3]),
-			(unsigned int *)&(mac->octet[4]), (unsigned int *)&(mac->octet[5]));
-	else
-		DHD_ERROR(("dhd_bus_start: Reading from the '%s' returns 0 bytes\n", filepath_efs));
-
-	if (fp)
-		filp_close(fp, NULL);
-
-	/* Writing Newly generated MAC ID to the Dongle */
-	if (_dhd_set_mac_address(dhd, 0, mac) == 0)
-		DHD_INFO(("dhd_bus_start: MACID is overwritten\n"));
-	else
-		DHD_ERROR(("dhd_bus_start: _dhd_set_mac_address() failed\n"));
-
-	return 0;
-}
-#endif /* READ_MACADDR */
+#define SOFTAPINFO	PLATFORM_PATH".softap.info"
 
 #ifdef DHD_PM_CONTROL_FROM_FILE
 extern bool g_pm_control;
@@ -1048,7 +966,7 @@ dhd_force_disable_singlcore_scan(dhd_pub_t *dhd)
 }
 #endif /* FORCE_DISABLE_SINGLECORE_SCAN */
 
-#if defined(ARGOS_CPU_SCHEDULER)
+#if defined(ARGOS_CPU_SCHEDULER) && defined(CONFIG_SCHED_HMP)
 void
 set_irq_cpucore(unsigned int irq, cpumask_var_t default_cpu_mask,
 	cpumask_var_t affinity_cpu_mask)
@@ -1149,3 +1067,95 @@ void dhd_adps_mode_from_file(dhd_pub_t *dhd)
 	return;
 }
 #endif /* ADPS_MODE_FROM_FILE */
+
+#ifdef GEN_SOFTAP_INFO_FILE
+#define SOFTAP_INFO_FILE_FIRST_LINE	"#.softap.info"
+#define SOFTAP_INFO_BUF_SZ	512
+/*
+ * # Whether both wifi and hotspot can be turned on at the same time?
+ * DualBandConcurrency
+ * # 5Ghz band support?
+ * 5G
+ * # How many clients can be connected?
+ * maxClient
+ * # Does hotspot support PowerSave mode?
+ * PowerSave
+ * # Does android_net_wifi_set_Country_Code_Hal feature supported?
+ * HalFn_setCountryCodeHal
+ * # Does android_net_wifi_getValidChannels supported?
+ * HalFn_getValidChannels
+ */
+const char *softap_info_items[] = {
+	"DualBandConcurrency", "5G", "maxClient", "PowerSave",
+	"HalFn_setCountryCodeHal", "HalFn_getValidChannels", NULL
+};
+#if defined(BCM4361_CHIP)
+const char *softap_info_values[] = {
+	"yes", "yes", "10", "yes", "yes", "yes", NULL
+};
+#elif defined(BCM43455_CHIP)
+const char *softap_info_values[] = {
+	"no", "yes", "10", "no", "yes", "yes", NULL
+};
+#elif defined(BCM43430_CHIP)
+const char *softap_info_values[] = {
+	"no", "no", "10", "no", "yes", "yes", NULL
+};
+#else
+const char *softap_info_values[] = {
+	"UNDEF", "UNDEF", "UNDEF", "UNDEF", "UNDEF", "UNDEF", NULL
+};
+#endif /* defined(BCM4361_CHIP) */
+#endif /* GEN_SOFTAP_INFO_FILE */
+
+#ifdef GEN_SOFTAP_INFO_FILE
+uint32 sec_save_softap_info(void)
+{
+	struct file *fp = NULL;
+	char *filepath = SOFTAPINFO;
+	char temp_buf[SOFTAP_INFO_BUF_SZ];
+	int ret = -1, idx = 0, rem = 0, written = 0;
+	char *pos = NULL;
+
+	DHD_TRACE(("[WIFI_SEC] %s: Entered.\n", __FUNCTION__));
+	memset(temp_buf, 0, sizeof(temp_buf));
+
+	fp = filp_open(filepath, O_RDONLY, 0);
+	if (IS_ERR(fp) || (fp == NULL)) {
+		DHD_ERROR(("[WIFI_SEC] %s: %s File open failed.(%ld)\n",
+			SOFTAPINFO, __FUNCTION__, PTR_ERR(fp)));
+	} else {
+		filp_close(fp, NULL);
+		DHD_ERROR(("[WIFI_SEC] %s already saved.\n", SOFTAPINFO));
+		return 0;
+	}
+
+	pos = temp_buf;
+	rem = sizeof(temp_buf);
+	written = snprintf(pos, sizeof(temp_buf), "%s\n",
+		SOFTAP_INFO_FILE_FIRST_LINE);
+	do {
+		int len = strlen(softap_info_items[idx]) +
+			strlen(softap_info_values[idx]) + 2;
+		pos += written;
+		rem -= written;
+		if (len > rem) {
+			break;
+		}
+		written = snprintf(pos, rem, "%s=%s\n",
+			softap_info_items[idx], softap_info_values[idx]);
+	} while (softap_info_items[++idx] != NULL);
+
+	fp = filp_open(filepath, O_RDWR | O_CREAT, 0664);
+	if (IS_ERR(fp) || (fp == NULL)) {
+		DHD_ERROR(("[WIFI_SEC] %s: %s File open failed.\n",
+			SOFTAPINFO, __FUNCTION__));
+	} else {
+		ret = write_filesystem(fp, fp->f_pos, temp_buf, strlen(temp_buf));
+		DHD_INFO(("[WIFI_SEC] %s done. ret : %d\n", __FUNCTION__, ret));
+		DHD_ERROR(("[WIFI_SEC] save %s file.\n", SOFTAPINFO));
+		filp_close(fp, NULL);
+	}
+	return ret;
+}
+#endif /* GEN_SOFTAP_INFO_FILE */
