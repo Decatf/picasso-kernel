@@ -54,7 +54,7 @@ ifeq ($(CONFIG_BCMDHD_OOB_HOST_WAKE),y)
 	DHDCFLAGS += -DOOB_INTR_ONLY
 endif
 	# DPC priority
-	DHDCFLAGS += -DCUSTOM_DPC_PRIO_SETTING=10
+	DHDCFLAGS += -DCUSTOM_DPC_PRIO_SETTING=98
 	# idle count
 	DHDCFLAGS += -DDHD_USE_IDLECOUNT
 	# SKB TAILPAD to avoid out of boundary memory access
