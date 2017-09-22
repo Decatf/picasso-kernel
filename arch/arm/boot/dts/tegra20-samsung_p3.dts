@@ -21,6 +21,10 @@
 	cache-controller@50043000 {
 		compatible = "arm,pl310-cache";
 		arm,prefetch-offset = <5>;
+		/* arm,shared-override; */
+		cache-size = <0x100000>; // 1MB
+		cache-sets = <4096>;
+		cache-line-size = <32>;
 	};
 
 	memory {
