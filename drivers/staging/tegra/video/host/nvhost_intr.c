@@ -318,7 +318,7 @@ void nvhost_intr_put_ref(struct nvhost_intr *intr, u32 id, void *ref)
 
 int nvhost_intr_init(struct nvhost_intr *intr, u32 irq_gen, u32 irq_sync)
 {
-	struct sched_param param = { .sched_priority = 1 };
+	struct sched_param param = { .sched_priority = 3 };
 	unsigned int id;
 	struct nvhost_intr_syncpt *syncpt;
 	struct nvhost_master *host = intr_to_dev(intr);

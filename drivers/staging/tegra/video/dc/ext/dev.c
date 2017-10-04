@@ -1002,7 +1002,7 @@ static int tegra_dc_release(struct inode *inode, struct file *filp)
 
 static int tegra_dc_ext_setup_windows(struct tegra_dc_ext *ext)
 {
-	struct sched_param param = { .sched_priority = 1 };
+	struct sched_param param = { .sched_priority = 3 };
 	int i, ret;
 
 	for (i = 0; i < ext->dc->n_windows; i++) {
