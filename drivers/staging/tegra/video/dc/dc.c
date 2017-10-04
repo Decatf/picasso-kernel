@@ -923,7 +923,7 @@ int tegra_dc_wait_for_vsync(struct tegra_dc *dc)
 	return ret;
 }
 
-static void tegra_dc_vblank(struct work_struct *work)
+static void tegra_dc_vblank(struct kthread_work *work)
 {
 	struct tegra_dc *dc = container_of(work, struct tegra_dc, vblank_work);
 	bool nvsd_updated = false;
@@ -1092,7 +1092,7 @@ static void tegra_dc_one_shot_irq(struct tegra_dc *dc, unsigned long status)
 		tegra_dc_trigger_windows(dc);
 
 		/* Schedule any additional bottom-half vblank actvities. */
-		queue_work(system_freezable_wq, &dc->vblank_work);
+		queue_kthread_work(&dc->dc_worker, &dc->vblank_work);
 	}
 
 	if (status & FRAME_END_INT) {
@@ -1112,7 +1112,7 @@ static void tegra_dc_continuous_irq(struct tegra_dc *dc, unsigned long status)
 		/* Check underflow */
 		tegra_dc_underflow_handler(dc);
 
-		queue_work(system_freezable_wq, &dc->vblank_work);
+		queue_kthread_work(&dc->dc_worker, &dc->vblank_work);
 	}
 
 	if (status & FRAME_END_INT) {
@@ -2067,6 +2067,7 @@ static int tegra_dc_probe(struct nvhost_device *ndev,
 	void __iomem *base;
 	int irq;
 	int i;
+	struct sched_param param = { .sched_priority = 3 };
 
 	if (!ndev->dev.platform_data && ndev->dev.of_node)
 		ndev->dev.platform_data = tegra_dc_parse_dt(ndev);
@@ -2154,9 +2155,23 @@ static int tegra_dc_probe(struct nvhost_device *ndev,
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	INIT_WORK(&dc->reset_work, tegra_dc_reset_worker);
 #endif
-	INIT_WORK(&dc->vblank_work, tegra_dc_vblank);
 	INIT_DELAYED_WORK(&dc->one_shot_work, tegra_dc_one_shot_worker);
 	INIT_DELAYED_WORK(&dc->disable_work, tegra_dc_delayed_disable_work);
+
+	/* Create SCHED_FIFO kthread */
+	init_kthread_worker(&dc->dc_worker);
+
+	dc->dc_worker_thread = kthread_run(kthread_worker_fn,
+		&dc->dc_worker, "dc_worker_thread");
+
+	if (IS_ERR(dc->dc_worker_thread)) {
+		pr_err("%s() unable to start vblank thread\n", __func__);
+		return -EINVAL;
+	}
+
+	sched_setscheduler(dc->dc_worker_thread, SCHED_FIFO, &param);
+
+	init_kthread_work(&dc->vblank_work, tegra_dc_vblank);
 
 	tegra_dc_init_lut_defaults(&dc->fb_lut);
 
