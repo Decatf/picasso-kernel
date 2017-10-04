@@ -23,6 +23,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <asm/mach/irq.h>
+#include <linux/ktime.h>
 
 #include "nvhost_intr.h"
 #include "dev.h"
@@ -175,6 +176,8 @@ static void t20_intr_syncpt_thresh_isr(struct nvhost_intr_syncpt *syncpt)
 		host1x_sync_syncpt_thresh_int_disable_r() + reg);
 	writel(BIT_MASK(id), sync_regs +
 		host1x_sync_syncpt_thresh_cpu0_int_status_r() + reg);
+
+	ktime_get_ts(&syncpt->isr_recv);
 }
 
 /**

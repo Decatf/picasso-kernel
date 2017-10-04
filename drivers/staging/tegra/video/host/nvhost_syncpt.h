@@ -127,12 +127,12 @@ u32 nvhost_syncpt_read_wait_base(struct nvhost_syncpt *sp, u32 id);
 void nvhost_syncpt_incr(struct nvhost_syncpt *sp, u32 id);
 
 int nvhost_syncpt_wait_timeout(struct nvhost_syncpt *sp, u32 id, u32 thresh,
-			u32 timeout, u32 *value);
+			u32 timeout, u32 *value, struct timespec *ts);
 
 static inline int nvhost_syncpt_wait(struct nvhost_syncpt *sp, u32 id, u32 thresh)
 {
 	return nvhost_syncpt_wait_timeout(sp, id, thresh,
-					  MAX_SCHEDULE_TIMEOUT, NULL);
+					  MAX_SCHEDULE_TIMEOUT, NULL, NULL);
 }
 
 /*

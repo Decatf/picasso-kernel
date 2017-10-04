@@ -273,7 +273,7 @@ static int tegra_dc_ext_set_windowattr(struct tegra_dc_ext *ext,
 				&nvhost_get_host(ext->dc->ndev)->syncpt,
 				flip_win->attr.pre_syncpt_id,
 				flip_win->attr.pre_syncpt_val,
-				msecs_to_jiffies(500), NULL);
+				msecs_to_jiffies(500), NULL, NULL);
 	}
 
 #ifndef CONFIG_ANDROID
