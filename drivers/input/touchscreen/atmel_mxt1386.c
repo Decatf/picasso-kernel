@@ -3119,14 +3119,12 @@ u8 mxt_valid_interrupt(void)
 	return 1;
 }
 
-#ifdef CONFIG_PM_EARLYSUSPEND
-static void mxt_early_suspend(struct early_suspend *h)
+static void mxt_early_suspend(struct mxt_data *mxt)
 {
 #ifndef MXT_SLEEP_POWEROFF
 	u8 cmd_sleep[2] = {0};
 	u16 addr;
 #endif
-	struct mxt_data *mxt = container_of(h, struct mxt_data, early_suspend);
 
 	printk(KERN_DEBUG "[TSP] %s has been called!\n", __func__);
 #if defined(MXT_FACTORY_TEST)
@@ -3162,12 +3160,11 @@ static void mxt_early_suspend(struct early_suspend *h)
 	mxt_forced_release(mxt);
 }
 
-static void mxt_late_resume(struct early_suspend *h)
+static void mxt_late_resume(struct mxt_data *mxt)
 {
 #ifndef MXT_SLEEP_POWEROFF
 	int cnt;
 #endif
-	struct	mxt_data *mxt = container_of(h, struct mxt_data, early_suspend);
 
 	printk(KERN_DEBUG "[TSP] %s has been called!\n", __func__);
 #ifdef MXT_SLEEP_POWEROFF
@@ -3195,7 +3192,6 @@ static void mxt_late_resume(struct early_suspend *h)
 	schedule_delayed_work(&mxt->calibrate_dwork, msecs_to_jiffies(4000));
 #endif
 }
-#endif
 
 static void mxt_suspend_hw(struct mxt_data *mxt)
 {
@@ -3399,6 +3395,67 @@ static struct mxt_platform_data p3_touch_platform_data = {
 	/* Atmel: 25 => 55 : avoid idle palm on lockup*/
 	.atchcalfrcratio_idle = 55,
 #endif
+};
+
+static void mxt_suspend_work_handler(struct work_struct *work)
+{
+	struct mxt_data *mxt = container_of(work, struct mxt_data, suspend_work);
+
+	pr_info("%s\n", __func__);
+
+	if (mxt->suspended)
+		mxt_early_suspend(mxt);
+	else
+		mxt_late_resume(mxt);
+}
+
+static ssize_t mxt_suspend_show(struct device *dev,
+        struct device_attribute *attr, char *buf)
+{
+    struct mxt_data *mxt = dev_get_drvdata(dev);
+    int len;
+
+    len = sprintf(buf, "%d\n", !!mxt->suspended);
+    if (len <= 0)
+        dev_err(dev, "%s: Invalid sprintf len: %d\n", __func__, len);
+
+    return len;
+}
+
+static ssize_t mxt_suspend_store(struct device *dev,
+        struct device_attribute *attr, const char *buf, size_t count)
+{
+    struct mxt_data *mxt = dev_get_drvdata(dev);
+    long val;
+    int err;
+
+    err = kstrtol(buf, 10, &val);
+	if (err < 0) {
+		dev_err(dev, "%s error=%d", __func__, err);
+		return 0;
+	}
+    val = !!val;
+
+	if (mxt->suspended != val) {
+		pr_info("%s val=%ld\n", __func__, val);
+		mxt->suspended = val;
+		queue_work(system_freezable_wq, &mxt->suspend_work);
+	}
+
+    return count;
+}
+
+static DEVICE_ATTR(suspended, S_IRUGO | S_IWUSR, mxt_suspend_show,
+                   mxt_suspend_store);
+
+static struct attribute *mxt_attrs[] = {
+    &dev_attr_suspended.attr,
+    NULL
+};
+
+static struct attribute_group mxt_attr_group = {
+    .name = "mxt1386",
+    .attrs = mxt_attrs,
 };
 
 static int mxt_parse_dt(struct mxt_data *mxt, struct device_node *np)
@@ -3609,14 +3666,16 @@ static int mxt_probe(struct i2c_client *client,
 		goto err_irq;
 	}
 
-#ifdef CONFIG_PM_EARLYSUSPEND
-	mxt->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	mxt->early_suspend.suspend = mxt_early_suspend;
-	mxt->early_suspend.resume = mxt_late_resume;
-	register_early_suspend(&mxt->early_suspend);
-#endif	/* CONFIG_PM_EARLYSUSPEND */
+	mxt->suspended = 0;
+	INIT_WORK(&mxt->suspend_work, mxt_suspend_work_handler);
 
-	/*
+    error = sysfs_create_group(&client->dev.kobj, &mxt_attr_group);
+    if (error) {
+        dev_err(&client->dev, "sysfs creation failed\n");
+		error = -ENODEV;
+        goto err_sysfs_create_group;
+    }
+
 	tsp_dev  = device_create(sec_class, NULL, 0, mxt, "sec_touchscreen");
 	if (IS_ERR(tsp_dev)) {
 		pr_err("Failed to create device for the sysfs\n");
@@ -3629,7 +3688,6 @@ static int mxt_probe(struct i2c_client *client,
 		pr_err("Failed to create sysfs group\n");
 		goto err_sysfs_create_group;
 	}
-	*/
 
 #ifdef ITDEV
 	error = sysfs_create_group(&client->dev.kobj, &libmaxtouch_attr_group);
@@ -3660,9 +3718,6 @@ static int mxt_probe(struct i2c_client *client,
 	return 0;
 
 err_sysfs_create_group:
-#ifdef CONFIG_PM_EARLYSUSPEND
-	unregister_early_suspend(&mxt->early_suspend);
-#endif
 	if (mxt->irq)
 		free_irq(mxt->irq, mxt);
 err_irq:
@@ -3701,11 +3756,11 @@ static int mxt_remove(struct i2c_client *client)
 	mxt = i2c_get_clientdata(client);
 
 	/* Close down sysfs entries */
+#ifdef ITDEV
 	sysfs_remove_group(&client->dev.kobj, &maxtouch_attr_group);
+#endif
 
-#ifdef CONFIG_PM_EARLYSUSPEND
-	unregister_early_suspend(&mxt->early_suspend);
-#endif	/* CONFIG_PM_EARLYSUSPEND */
+    sysfs_remove_group(&client->dev.kobj, &mxt_attr_group);
 
 	/* Release IRQ so no queue will be scheduled */
 	if (mxt->irq)
@@ -3736,7 +3791,7 @@ static int mxt_remove(struct i2c_client *client)
 	return 0;
 }
 
-#if defined(CONFIG_PM) && !defined(CONFIG_PM_EARLYSUSPEND)
+#if defined(CONFIG_PM)
 static int mxt_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	struct mxt_data *mxt = i2c_get_clientdata(client);
