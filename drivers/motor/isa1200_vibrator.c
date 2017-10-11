@@ -17,7 +17,6 @@
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/pwm.h>
-#include <linux/wakelock.h>
 #include <linux/mutex.h>
 #include <linux/clk.h>
 #include <linux/workqueue.h>
