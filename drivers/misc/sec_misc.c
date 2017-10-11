@@ -28,7 +28,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
-#include <linux/wakelock.h>
 #include <linux/blkdev.h>
 #include <linux/gpio.h>
 
