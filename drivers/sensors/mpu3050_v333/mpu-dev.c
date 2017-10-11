@@ -39,10 +39,6 @@
 #include <linux/of.h>
 #include <linux/of_irq.h>
 
-#ifdef CONFIG_PM_EARLYSUSPEND
-#include <linux/earlysuspend.h>
-#endif
-
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
@@ -61,8 +57,6 @@
 
 #include "mpu.h"
 
-#define MPU3050_EARLY_SUSPEND_IN_DRIVER 1
-
 #define CALIBRATION_FILE_PATH	"/efs/calibration_data"
 #define CALIBRATION_DATA_AMOUNT	100
 
@@ -72,9 +66,9 @@ struct acc_data cal_data;
 struct mpu_private_data {
 	struct mldl_cfg mldl_cfg;
 
-#ifdef CONFIG_PM_EARLYSUSPEND
-	struct early_suspend early_suspend;
-#endif
+	struct work_struct suspend_work;
+	int suspended;
+
 };
 
 static int pid;
@@ -1002,13 +996,8 @@ static long mpu_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return retval;
 }
 
-#ifdef CONFIG_PM_EARLYSUSPEND
-void mpu3050_early_suspend(struct early_suspend *h)
+void mpu3050_early_suspend(struct mpu_private_data *mpu)
 {
-	struct mpu_private_data *mpu = container_of(h,
-						    struct
-						    mpu_private_data,
-						    early_suspend);
 	struct mldl_cfg *mldl_cfg = &mpu->mldl_cfg;
 	struct i2c_adapter *accel_adapter;
 	struct i2c_adapter *compass_adapter;
@@ -1018,20 +1007,15 @@ void mpu3050_early_suspend(struct early_suspend *h)
 	compass_adapter = i2c_get_adapter(mldl_cfg->pdata->compass.adapt_num);
 	pressure_adapter = i2c_get_adapter(mldl_cfg->pdata->pressure.adapt_num);
 
-	dev_dbg(&this_client->adapter->dev, "%s: %d, %d\n", __func__,
-		h->level, mpu->mldl_cfg.gyro_is_suspended);
-	if (MPU3050_EARLY_SUSPEND_IN_DRIVER)
-		(void)mpu3050_suspend(mldl_cfg, this_client->adapter,
-				      accel_adapter, compass_adapter,
-				      pressure_adapter, TRUE, TRUE, TRUE, TRUE);
+	dev_dbg(&this_client->adapter->dev, "%s: %d\n", __func__,
+		mpu->mldl_cfg.gyro_is_suspended);
+	mpu3050_suspend(mldl_cfg, this_client->adapter,
+			      accel_adapter, compass_adapter,
+			      pressure_adapter, TRUE, TRUE, TRUE, TRUE);
 }
 
-void mpu3050_early_resume(struct early_suspend *h)
+void mpu3050_early_resume(struct mpu_private_data *mpu)
 {
-	struct mpu_private_data *mpu = container_of(h,
-						    struct
-						    mpu_private_data,
-						    early_suspend);
 	struct mldl_cfg *mldl_cfg = &mpu->mldl_cfg;
 	struct i2c_adapter *accel_adapter;
 	struct i2c_adapter *compass_adapter;
@@ -1044,25 +1028,22 @@ void mpu3050_early_resume(struct early_suspend *h)
 	printk(KERN_DEBUG "[ACCELERMETER SENSOR] Cal data (%d,%d,%d)\n",
 	       cal_data.x, cal_data.y, cal_data.z);
 
-	if (MPU3050_EARLY_SUSPEND_IN_DRIVER) {
-		if (pid) {
-			unsigned long sensors = mldl_cfg->requested_sensors;
-			(void)mpu3050_resume(mldl_cfg,
-					     this_client->adapter,
-					     accel_adapter,
-					     compass_adapter,
-					     pressure_adapter,
-					     sensors & ML_THREE_AXIS_GYRO,
-					     sensors & ML_THREE_AXIS_ACCEL,
-					     sensors & ML_THREE_AXIS_COMPASS,
-					     sensors & ML_THREE_AXIS_PRESSURE);
-			dev_dbg(&this_client->adapter->dev,
-				"%s for pid %d\n", __func__, pid);
-		}
+	if (pid) {
+		unsigned long sensors = mldl_cfg->requested_sensors;
+		mpu3050_resume(mldl_cfg,
+				     this_client->adapter,
+				     accel_adapter,
+				     compass_adapter,
+				     pressure_adapter,
+				     sensors & ML_THREE_AXIS_GYRO,
+				     sensors & ML_THREE_AXIS_ACCEL,
+				     sensors & ML_THREE_AXIS_COMPASS,
+				     sensors & ML_THREE_AXIS_PRESSURE);
+		dev_dbg(&this_client->adapter->dev,
+			"%s for pid %d\n", __func__, pid);
 	}
-	dev_dbg(&this_client->adapter->dev, "%s: %d\n", __func__, h->level);
+	dev_dbg(&this_client->adapter->dev, "%s:\n", __func__);
 }
-#endif
 
 void mpu_shutdown(struct i2c_client *client)
 {
@@ -1375,6 +1356,67 @@ static struct device *sec_mpu3050_dev;
 static struct device *accel_sensor_device;
 #endif
 
+static void mpu_suspend_work_handler(struct work_struct *work)
+{
+	struct mpu_private_data *mpu = container_of(work, struct mpu_private_data, suspend_work);
+
+	pr_info("%s\n", __func__);
+
+	if (mpu->suspended)
+		mpu3050_early_suspend(mpu);
+	else
+		mpu3050_early_resume(mpu);
+}
+
+static ssize_t mpu_suspend_show(struct device *dev,
+        struct device_attribute *attr, char *buf)
+{
+    struct mpu_private_data *mpu = dev_get_drvdata(dev);
+    int len;
+
+    len = sprintf(buf, "%d\n", !!mpu->suspended);
+    if (len <= 0)
+        dev_err(dev, "%s: Invalid sprintf len: %d\n", __func__, len);
+
+    return len;
+}
+
+static ssize_t mpu_suspend_store(struct device *dev,
+        struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct mpu_private_data *mpu = dev_get_drvdata(dev);
+	long val;
+	int err;
+
+	err = kstrtol(buf, 10, &val);
+	if (err < 0) {
+		dev_err(dev, "%s error=%d", __func__, err);
+		return 0;
+	}
+	val = !!val;
+
+	if (mpu->suspended != val) {
+		pr_info("%s val=%ld\n", __func__, val);
+		mpu->suspended = val;
+		queue_work(system_freezable_wq, &mpu->suspend_work);
+	}
+
+    return count;
+}
+
+static DEVICE_ATTR(suspended, S_IRUGO | S_IWUSR, mpu_suspend_show,
+                   mpu_suspend_store);
+
+static struct attribute *mpu_attrs[] = {
+    &dev_attr_suspended.attr,
+    NULL
+};
+
+static struct attribute_group mpu_attr_group = {
+    .name = "mpu3050",
+    .attrs = mpu_attrs,
+};
+
 static void mpu3050_dt_parse_slave_pdata(struct i2c_client *client,
 					 struct device_node *of_node,
 					 struct ext_slave_platform_data *slave_pdata)
@@ -1588,12 +1630,15 @@ int mpu3050_probe(struct i2c_client *client, const struct i2c_device_id *devid)
 
 	mpu_accel_init(&mpu->mldl_cfg, client->adapter);
 
-#ifdef CONFIG_PM_EARLYSUSPEND
-	mpu->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	mpu->early_suspend.suspend = mpu3050_early_suspend;
-	mpu->early_suspend.resume = mpu3050_early_resume;
-	register_early_suspend(&mpu->early_suspend);
-#endif
+	mpu->suspended = 0;
+	INIT_WORK(&mpu->suspend_work, mpu_suspend_work_handler);
+
+	res = sysfs_create_group(&client->dev.kobj, &mpu_attr_group);
+	if (res) {
+		dev_err(&client->dev, "sysfs creation failed\n");
+		res = -ENODEV;
+		goto out_mpuirq_failed;
+	}
 
 #ifdef FACTORY_TEST
 	res =
@@ -1664,9 +1709,8 @@ static int mpu3050_remove(struct i2c_client *client)
 
 	dev_dbg(&client->adapter->dev, "%s\n", __func__);
 
-#ifdef CONFIG_PM_EARLYSUSPEND
-	unregister_early_suspend(&mpu->early_suspend);
-#endif
+	sysfs_remove_group(&client->dev.kobj, &mpu_attr_group);
+
 	mpu3050_close(mldl_cfg, client->adapter,
 		      accel_adapter, compass_adapter, pressure_adapter);
 
@@ -1717,10 +1761,6 @@ static struct i2c_driver mpu3050_driver = {
 		   },
 	.address_list = normal_i2c,
 	.shutdown = mpu_shutdown,	/* optional */
-#ifndef CONFIG_PM_EARLYSUSPEND
-	.suspend = mpu_suspend,	/* optional */
-	.resume = mpu_resume,	/* optional */
-#endif
 };
 
 module_i2c_driver(mpu3050_driver);
