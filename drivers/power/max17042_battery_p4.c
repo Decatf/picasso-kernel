@@ -21,7 +21,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
-#include <linux/wakelock.h>
 #include <linux/blkdev.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
